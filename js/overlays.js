@@ -15,7 +15,7 @@
     // Auto: un clasificador decide qué órdenes son seguras; mismas herramientas que Aceptar ediciones.
     auto: { nombre: 'Auto', modo: 'auto', diseno: 'Read Glob Grep Edit Write', codigo: 'Read Glob Grep Edit Write' + ORDENES + GIT },
     // Sin permisos: no pregunta ni deniega nada y las reglas de ruta (./**) dejan de confinar; solo limita qué herramientas existen.
-    sinpermisos: { nombre: 'Sin permisos', modo: 'bypassPermissions', diseno: 'Read Glob Grep Edit Write', codigo: 'Read Glob Grep Edit Write' + ORDENES + GIT },
+    sinpermisos: { nombre: 'Omitir permisos', modo: 'bypassPermissions', diseno: 'Read Glob Grep Edit Write', codigo: 'Read Glob Grep Edit Write' + ORDENES + GIT },
     // Plan: el agente investiga y propone, sin editar nada (Claude Code bloquea las ediciones en este modo).
     plan: { nombre: 'Plan', modo: 'plan', diseno: 'Read Glob Grep', codigo: 'Read Glob Grep' }
   };
@@ -38,7 +38,7 @@
   // =====================================================================================
   // Sin mayúsculas ni tildes, para que "sesion" encuentre "Sesión".
   const plano = t => String(t).toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
-  const GRUPOS = ['Vistas', 'Sesiones', 'Prompts', 'Archivos', 'Agentes', 'Herramientas'];
+  const GRUPOS = ['Vistas', 'Acciones', 'Sesiones', 'Prompts', 'Archivos', 'Agentes', 'Herramientas'];
   function paleta() {
     if (abierta()) return;
     const app = RA.app, c = capa('Buscar', () => c.cerrar());
@@ -46,8 +46,10 @@
     const elegirSesion = (x, vista) => { app.sel.sesion = x.id; app.sel.agente = null; app.sel.evento = null; app.ir(vista || 'chat'); };
     // Índice: [grupo, texto que se busca, nodos que se pintan, qué hace al elegirlo]
     const indice = [];
-    [['chat', 'Chat'], ['sesiones', 'Sesiones'], ['cambios', 'Cambios'], ['archivos', 'Archivos'], ['consola', 'Consola'], ['consumo', 'Uso · Consumo'], ['estadisticas', 'Uso · Estadísticas'], ['ajustes', 'Ajustes']]
+    [['chat', 'Chat'], ['sesiones', 'Sesiones'], ['cambios', 'Cambios'], ['archivos', 'Archivos'], ['consola', 'Terminal'], ['consumo', 'Consumo'], ['estadisticas', 'Consumo · Estadísticas'], ['ajustes', 'Ajustes']]
       .forEach(v => indice.push(['Vistas', v[1], [el('span', {}, v[1])], () => app.ir(v[0])]));
+    // D1: acciones sin botón propio en la cabecera.
+    if (app.leerMetricas) indice.push(['Acciones', 'Leer métricas cifras agentes llamadas errores uso', [el('span', { class: 'crece' }, 'Leer métricas'), el('span', { class: 'note' }, (D.ajustes.teclas && D.ajustes.teclas.leer) || '')], () => app.leerMetricas()]);
     D.estado.sesiones.forEach(x => {
       indice.push(['Sesiones', x.nombre + ' ' + (x.carpeta || ''), [ui.estado(x.est), el('span', { class: 'crece' }, x.nombre), el('span', { class: 'note' }, ui.fecha(x.tUlt || x.t0 || D.ahora()))], () => elegirSesion(x)]);
       // Prompts anteriores: los del transcript de cada sesión. Elegir uno lo deja en el campo de Chat, sin enviarlo.

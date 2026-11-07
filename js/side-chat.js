@@ -67,7 +67,7 @@
       ])
     ]);
     $('#lat-texto').value = pensando ? '' : borrador;
-    if (tenia || pensando === false && caja.dataset.recien) { $('#lat-texto').focus(); delete caja.dataset.recien; }
+    if (tenia || pensando === false && caja.dataset.recien) { $('#lat-texto').focus({ preventScroll: true }); delete caja.dataset.recien; }
     const hilo = caja.querySelector('.lat-hilo'); hilo.scrollTop = hilo.scrollHeight;
   }
 

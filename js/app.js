@@ -189,7 +189,6 @@
     if (!app.pausa) app.pintar();
   });
   $('#ses-elegida').addEventListener('change', ev => { app.sel.sesion = ev.target.value; app.sel.agente = null; app.sel.evento = null; app.sel.tope = 0; ui.pintar(tiempo, null); app.pintar(); });
-  $('#leer').addEventListener('click', leerMetricas);
 
   // ---- Barra superior: marca, modos, menú en ancho estrecho, tema, ajustes y flechas de las tarjetas ----
   ui.pintar($('#marca'), RA.glifos.marca());
@@ -199,6 +198,11 @@
   // "Más detalles" de Chat: se recuerda si quedó abierto.
   const mas = $('#chat-mas');
   try { mas.open = localStorage.getItem('rastro:chatmas') === '1'; } catch (e) { /* sin almacenamiento */ }
+  // Bloque B: "Más" del compositor (esfuerzo de la IA local, cola, biblioteca, caveman y Remote Control).
+  const compMas = $('#masc-mas'), compPanel = $('#masc-mas-panel');
+  const ponerCompMas = v => { compPanel.hidden = !v; compMas.setAttribute('aria-expanded', String(v)); try { localStorage.setItem('rastro:compmas', v ? '1' : '0'); } catch (e) { /* sin almacenamiento */ } };
+  try { ponerCompMas(localStorage.getItem('rastro:compmas') === '1'); } catch (e) { ponerCompMas(false); }
+  compMas.addEventListener('click', () => ponerCompMas(compPanel.hidden));
   mas.addEventListener('toggle', () => { try { localStorage.setItem('rastro:chatmas', mas.open ? '1' : '0'); } catch (e) { /* sin almacenamiento */ } if (mas.open) app.pintar(); });
   // El panel derecho de Chat (botón "Contexto") lo lleva js/chat-columns.js.
   // En ancho estrecho las secciones están en la barra lateral, que es un cajón: el botón Menú la abre.
@@ -267,8 +271,11 @@
     btn.addEventListener('blur', pinta);
     pinta();
   }
-  teclaCambiable($('#tecla-buscar'), 'buscar', 'abre la búsqueda con Control');
-  teclaCambiable($('#tecla-leer'), 'leer', 'dice las métricas');
+  // Las teclas se cambian en Ajustes › Accesibilidad (bloque A: la franja fija del pie se quitó).
+  app.teclaCambiable = teclaCambiable;
+  app.leerMetricas = leerMetricas;
+  // La búsqueda enseña su tecla aunque Ajustes no se haya abierto.
+  ui.$$('.t-buscar').forEach(n => { const k = nombreTecla(D.ajustes.teclas.buscar); if (n.dataset.k) n.dataset.k = k; else n.textContent = k; });
   document.addEventListener('keydown', e => {
     const t = D.ajustes.teclas, k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     const escribe = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
@@ -367,13 +374,17 @@
     ['Qué es el Consumo', 'Tu plan de Claude tiene un límite de uso cada pocas horas y otro semanal. En Consumo ves cuánto llevas y cuándo se reinicia.'],
     ['Si algo pasa', 'Los avisos salen abajo a la derecha y quedan en Avisos, arriba. Si algo no funciona, Ajustes › Estado del equipo te dice qué revisar.']
   ];
-  let paso = 0;
+  let paso = 0, guiaPedida = false, guiaFirma = '';
+  // Bloque A: con sesiones, la guía de primer uso no sale sola; solo si se pide desde Ajustes.
   function guia() {
     const caja = $('#guia');
-    caja.hidden = !!D.ajustes.guiaVista;
+    caja.hidden = !!D.ajustes.guiaVista || (!guiaPedida && D.estado.sesiones.length > 0);
+    const firma = caja.hidden ? 'oculta' : 'paso' + paso;
+    if (firma === guiaFirma) return;
+    guiaFirma = firma;
     if (caja.hidden) return ui.pintar(caja, null);
     const ir = n => { paso = n; guia(); $('#guia-t').focus(); };
-    const fin = () => { D.guardar({ guiaVista: true }); guia(); ui.decir('Guía cerrada. Puedes volver a abrirla en Ajustes.', 'neutro'); $('#masc-prompt').focus(); };
+    const fin = () => { guiaPedida = false; D.guardar({ guiaVista: true }); guia(); ui.decir('Guía cerrada. Puedes volver a abrirla en Ajustes.', 'neutro'); $('#masc-prompt').focus(); };
     ui.pintar(caja, [
       el('div', { class: 'esc' }, [
         el('p', { class: 'label' }, 'Guía rápida · paso ' + (paso + 1) + ' de ' + GUIA.length),
@@ -388,7 +399,8 @@
       el('div', { class: 'card-pie' }, ui.puntos(GUIA.length, paso + 1, 'Paso ' + (paso + 1) + ' de ' + GUIA.length))
     ]);
   }
-  app.guia = () => { paso = 0; D.guardar({ guiaVista: false }); app.ir('chat'); guia(); $('#guia-t').focus(); };
+  app.guia = () => { paso = 0; guiaPedida = true; guiaFirma = ''; D.guardar({ guiaVista: false }); app.ir('chat'); guia(); $('#guia-t').focus(); };
+  D.alCambiar(guia);
   // Para las pruebas y para el respaldo importado: aplica de una vez ajustes de claridad.
   app.preferencias = o => { D.guardar(o); aplicarModo(); guia(); app.pintar(); };
   aplicarModo();

@@ -34,25 +34,22 @@
     if (!P) { try { localStorage.setItem('rastro:barra', JSON.stringify(b)); } catch (e) { /* sin almacenamiento */ } }
     return pide('barraGuardar', b);
   };
-  function relativo(t) {
-    if (!t) return '';
-    const s = Math.max(0, (Date.now() - t) / 1000);
-    return s < 60 ? 'ahora' : s < 3600 ? Math.floor(s / 60) + 'm' : s < 86400 ? Math.floor(s / 3600) + 'h' : s < 2592000 ? Math.floor(s / 86400) + 'd' : Math.floor(s / 2592000) + 'mes';
-  }
+  const relativo = t => RA.logica.relativo(t);
   /* Estado de una sesión con los puntos del diseño: trabajando (rojo lleno), pide permiso (ámbar), espera tu
      respuesta (anillo ámbar: terminó su turno con el proceso abierto, o espera la aprobación del diseño),
      terminada (lleno claro), falló (anillo rojo) y en espera (anillo gris). La palabra va para el lector de pantalla. */
   function estado(s) {
     const c = RA.chat && RA.chat.estado ? RA.chat.estado(s.id) : null;
-    if (RA.chat && RA.chat.permiso && RA.chat.permiso(s.id)) return ['permiso', 'Pide permiso'];
-    if (c === 'enviando' || c === 'respondiendo' || s.est === 'curso' || s.est === 'deteniendo') return ['trabajando', 'Trabajando'];
-    if (s.est === 'error' || s.bloqueo) return ['fallido', 'Falló'];
-    if (s.est === 'espera' || (s.vivo && (s.est === 'listo' || c === 'listo'))) return ['esperando', 'Esperando tu respuesta'];
-    if (s.est === 'listo' && !s.vivo) return ['terminado', 'Terminada'];
-    return ['espera', 'En espera'];
+    const W = RA.logica.PALABRA_SESION;
+    if (RA.chat && RA.chat.permiso && RA.chat.permiso(s.id)) return ['permiso', W.permiso];
+    if (c === 'enviando' || c === 'respondiendo' || s.est === 'curso' || s.est === 'deteniendo') return ['trabajando', W.trabajando];
+    if (s.est === 'error' || s.bloqueo) return ['fallido', W.error];
+    if (s.est === 'espera' || (s.vivo && (s.est === 'listo' || c === 'listo'))) return ['esperando', W.esperando];
+    if (s.est === 'listo' && !s.vivo) return ['terminado', W.terminada];
+    return ['espera', W.detenida];
   }
   // Filtro por estado del menú Agrupar y ordenar.
-  const FILTROS = { todas: 'Todas', trabajando: 'Trabajando', esperando: 'Esperan tu respuesta', terminadas: 'Terminadas' };
+  const FILTROS = { todas: 'Todas', trabajando: 'Trabajando', esperando: 'Esperándote', terminadas: 'Terminadas' };
   const pasaFiltro = s => {
     const e = estado(s)[0];
     return b.filtro === 'trabajando' ? e === 'trabajando' : b.filtro === 'esperando' ? (e === 'esperando' || e === 'permiso') : b.filtro === 'terminadas' ? (e === 'terminado' || e === 'fallido') : true;
@@ -104,7 +101,7 @@
       n.firma = firma;
       const [pt, txt, tit, hace] = n.ir.children;
       pt.className = 'sb-dot ' + e[0]; txt.textContent = e[1] + ': ';
-      tit.textContent = s.nombre; hace.textContent = relativo(s.tUlt); n.ir.title = s.nombre + ' · ' + e[1] + (s.tUlt ? ' · hace ' + relativo(s.tUlt) : '');
+      tit.textContent = s.nombre; hace.textContent = relativo(s.tUlt); n.ir.title = s.nombre + ' · ' + e[1] + (s.tUlt ? ' · ' + relativo(s.tUlt) : '');
       if (RA.app.sel.sesion === s.id) n.ir.setAttribute('aria-current', 'true'); else n.ir.removeAttribute('aria-current');
       n.li.firstChild.setAttribute('aria-label', 'Cambiar posición de ' + s.nombre + '. Espacio para levantar, flechas para mover, Espacio para soltar, Esc para cancelar');
     }
@@ -129,6 +126,16 @@
   }
 
   // ---- Pintado ----
+  let arriba = new Set();
+  const enSesiones = () => RA.chat3 && RA.chat3.idsLista ? RA.chat3.idsLista() : new Set();
+  // Carpeta abierta cuyas sesiones están todas arriba (lista "Sesiones" o Fijadas): lo dice en vez de quedar vacía.
+  const notas = new Map();
+  function notaVacia(k) {
+    if (!notas.has(k)) notas.set(k, el('li', { class: 'note barra-nota' }));
+    const n = notas.get(k), hay = (b.sesiones[k] || []).some(id => porId(id));
+    n.textContent = hay ? 'Sus sesiones están arriba, en «Sesiones» o en Fijadas.' : 'Sin sesiones todavía. Pulsa + para empezar una aquí.';
+    return n;
+  }
   function pintar() {
     if (!cargada || !$('#barra') || arrastrando || !RA.app) return;
     reconciliar();
@@ -143,9 +150,11 @@
     const fij = b.fijadas.map(porId).filter(Boolean).filter(pasa);
     colocar($('#barra-fijadas'), fij.map(s => itemSesion(s, 'fijadas')));
     $('#barra-fijadas-vacio').hidden = fij.length > 0;
-    // Proyectos
+    // Proyectos. D7: cada sesión sale una sola vez. Como las fijadas, las que enseña la lista "Sesiones" de
+    // arriba no se repiten en su carpeta; al buscar o filtrar aquí sí salen todas (es otra pregunta).
+    arriba = txt || filtrado ? new Set() : enSesiones();
     let orden = b.proyectos.filter(k => existentes.has(k) && b.ocultos.indexOf(k) < 0);
-    const ses = k => (b.sesiones[k] || []).filter(id => b.fijadas.indexOf(id) < 0).map(porId).filter(Boolean);
+    const ses = k => (b.sesiones[k] || []).filter(id => b.fijadas.indexOf(id) < 0 && !arriba.has(id)).map(porId).filter(Boolean);
     if (!manual) {
       const ult = k => Math.max(0, ...ses(k).map(s => s.tUlt || 0));
       orden = orden.slice().sort((x, y) => ult(y) - ult(x));
@@ -153,7 +162,7 @@
     const lis = [];
     // Sin agrupar: todas las sesiones en una lista, de la más reciente a la más antigua.
     if (plano) {
-      const todas = sesiones().filter(s => b.fijadas.indexOf(s.id) < 0 && b.ocultos.indexOf(proyDe(s)) < 0).filter(pasa).sort(porOrden);
+      const todas = sesiones().filter(s => b.fijadas.indexOf(s.id) < 0 && !arriba.has(s.id) && b.ocultos.indexOf(proyDe(s)) < 0).filter(pasa).sort(porOrden);
       todas.forEach(s => lis.push(itemSesion(s, 'todas')));
       orden = [];
     }
@@ -184,7 +193,7 @@
         if (g.mas) g.mas.setAttribute('aria-label', 'Crear sesión nueva en ' + nombreProy(k));
       }
       g.ul.hidden = !abierto;
-      if (abierto) colocar(g.ul, (largo && !todas ? lista.slice(0, TOPE) : lista).map(s => itemSesion(s, k)));
+      if (abierto) colocar(g.ul, lista.length ? (largo && !todas ? lista.slice(0, TOPE) : lista).map(s => itemSesion(s, k)) : [notaVacia(k)]);
       lis.push(g.li);
     });
     colocar($('#barra-proyectos'), lis);
@@ -245,7 +254,7 @@
   function visibles(lista) {
     if (lista === 'proyectos') return b.proyectos.filter(k => existentes.has(k) && b.ocultos.indexOf(k) < 0);
     if (lista === 'fijadas') return b.fijadas.filter(id => porId(id));
-    return listaDe(lista).filter(id => b.fijadas.indexOf(id) < 0 && porId(id));
+    return listaDe(lista).filter(id => b.fijadas.indexOf(id) < 0 && !arriba.has(id) && porId(id));
   }
   function mover(lista, id, delta, anunciar) {
     const vis = visibles(lista), i = vis.indexOf(id), j = Math.max(0, Math.min(vis.length - 1, i + delta));

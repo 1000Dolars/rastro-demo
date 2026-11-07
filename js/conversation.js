@@ -72,14 +72,14 @@
     const curso = e.est === 'curso', error = e.est === 'error', salida = detallado ? (e.err || e.sal || '') : '';
     // Rutas HTML, PDF o de vídeo: se abren en el Navegador (code.claude.com/docs/en/desktop, "Preview your app").
     const ruta = ARCHIVOS[e.h] && PREVISUALIZABLE.test(e.res || '');
-    const lado = e.cuenta ? '+' + e.cuenta.mas + ' −' + e.cuenta.menos : curso ? 'en curso' : error ? 'falló' : dur(e.dur);
+    const lado = e.cuenta ? '+' + e.cuenta.mas + ' −' + e.cuenta.menos : curso ? 'trabajando' : error ? 'falló' : dur(e.dur);
     return el('li', { class: 'conv-fila' + (curso ? ' curso' : '') }, [
       G.svg(G.deHerramienta(e.h), null, 3.2),
       el('span', { class: 'conv-verbo' }, verbo(e.h)),
       ruta ? el('button', { type: 'button', class: 'conv-obj mono conv-ruta', title: 'Ver ' + e.res + ' en el Navegador', 'aria-label': 'Ver ' + e.res + ' en el Navegador', onclick: () => RA.navegador && RA.navegador.abrirArchivo(e.res) }, e.res)
         : el('span', { class: 'conv-obj mono', title: e.res || '' }, e.res || ''),
-      el('span', { class: 'conv-dur mono' + (curso || error ? ' rojo' : e.cuenta ? ' claro' : '') }, lado),
-      el('span', { class: 'conv-pt ' + (curso ? 'curso' : error ? 'error' : 'ok'), role: 'img', 'aria-label': curso ? 'En curso' : error ? 'Falló' : 'Hecho' }),
+      el('span', { class: 'conv-dur mono' + (curso ? ' curso' : error ? ' rojo' : e.cuenta ? ' claro' : '') }, lado),
+      el('span', { class: 'conv-pt ' + (curso ? 'curso' : error ? 'error' : 'ok'), role: 'img', 'aria-label': curso ? 'Trabajando' : error ? 'Falló' : 'Hecho' }),
       salida ? el('pre', { class: 'conv-sal mono' + (e.err ? ' mal' : '') }, String(salida).slice(0, 600) + (String(salida).length > 600 ? ' … +' + (String(salida).length - 600) + ' caracteres' : '')) : null
     ]);
   }
@@ -170,5 +170,5 @@
     })));
   }
 
-  RA.conversacion = { pintar: pintar, plan: plan, vista: () => vistaActual(RA.vistas && RA.vistas.actual()), alternar: alternar, poner: v => ponerVista(v, RA.vistas && RA.vistas.actual()) };
+  RA.conversacion = { VISTAS: VISTAS, conPens: conPens, pintar: pintar, plan: plan, vista: () => vistaActual(RA.vistas && RA.vistas.actual()), alternar: alternar, poner: v => ponerVista(v, RA.vistas && RA.vistas.actual()) };
 })(window.RA = window.RA || {});

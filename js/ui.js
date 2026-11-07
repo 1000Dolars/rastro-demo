@@ -9,7 +9,7 @@
   const nf1 = new Intl.NumberFormat(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const hf = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
   const df = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-  const ESTADOS = { cola: 'En cola', curso: 'En curso', listo: 'Listo', error: 'Error', detenido: 'Detenido', deteniendo: 'Deteniendo', nodatos: 'Sin datos', espera: 'Esperando aprobación' };
+  const ESTADOS = { cola: 'En cola', curso: 'Trabajando', listo: 'Listo', error: 'Error', detenido: 'Detenido', deteniendo: 'Deteniendo', nodatos: 'Sin datos', espera: 'Esperando aprobación' };
   const TRAZOS = ['', '6 4', '1 4', '8 3 1 3', '12 4'];   // continuo, discontinuo, punteado, raya y punto, raya larga
   let serie = 0;   // para ids únicos
 
@@ -143,11 +143,8 @@
     },
 
     // ---- Insignias, estados y puntos ----
-    // Los corchetes son adorno: se ven, pero un lector de pantalla no los lee.
-    corchetes(kids) {
-      const b = t => ui.el('span', { 'aria-hidden': 'true' }, t);
-      return [b('[ ')].concat(kids, [b(' ]')]);
-    },
+    // Bloque H: las insignias ya no llevan corchetes decorativos; el borde de la píldora basta.
+    corchetes(kids) { return [].concat(kids); },
     insignia(kids, clase) { return ui.el('span', { class: 'badge' + (clase ? ' ' + clase : '') }, ui.corchetes(kids)); },
     // Punto de estado: la forma distingue cada estado; el nombre va para lectores de pantalla.
     estado(e, grande) {
@@ -261,6 +258,53 @@
         alCambiar(v);
       });
       return b;
+    },
+
+    /* Bloque C: deslizador de esfuerzo de Claude. Cinco paradas (Bajo a Máximo) en una pista horizontal: se
+       arrastra el pulgar o se hace clic en la pista, y la etiqueta sale sobre el pulgar mientras se arrastra.
+       Teclado: flechas, Inicio y Fin. "Según la tarea" es un interruptor aparte: encendido, el valor es '' y la
+       pista queda desactivada. o: { id, valor, alCambiar(v), nombre }. El nodo expone .valor. */
+    deslizadorEsfuerzo(o) {
+      const L = RA.logica, E = L.ESF_CLAUDE, nombre = o.nombre || 'Esfuerzo de Claude';
+      let i = L.indiceEsfuerzo(o.valor), ultimo = i >= 0 ? i : 1;
+      const pulgar = ui.el('span', { class: 'esf-pulgar', 'aria-hidden': 'true' }, ui.el('span', { class: 'esf-burbuja' }));
+      const relleno = ui.el('span', { class: 'esf-relleno', 'aria-hidden': 'true' });
+      const paradas = E.map((e, k) => ui.el('span', { class: 'esf-parada p' + k, 'aria-hidden': 'true' }));
+      const pista = ui.el('div', { class: 'esf-pista', role: 'slider', tabindex: '0', 'aria-label': nombre, 'aria-valuemin': '0', 'aria-valuemax': String(E.length - 1), 'aria-orientation': 'horizontal' }, [relleno].concat(paradas, [pulgar]));
+      const texto = ui.el('span', { class: 'esf-texto mono', 'aria-hidden': 'true' });
+      const caja = ui.el('div', { class: 'esf-desl', id: o.id || null });
+      const sw = ui.interruptor(i < 0, v => { i = v ? -1 : ultimo; pinta(); avisa(); }, 'Según la tarea');
+      sw.classList.add('esf-tarea');
+      function pinta() {
+        const off = i < 0, k = off ? ultimo : i, pct = k * 25 + '%', t = off ? 'Según la tarea' : E[k][1];
+        pista.setAttribute('aria-valuenow', String(k)); pista.setAttribute('aria-valuetext', t);
+        pista.setAttribute('aria-disabled', String(off)); pista.tabIndex = off ? -1 : 0;
+        caja.classList.toggle('apagado', off);
+        relleno.style.width = pct; pulgar.style.left = pct; pulgar.firstChild.textContent = E[k][1];
+        texto.textContent = t;
+      }
+      const avisa = () => { if (o.alCambiar) o.alCambiar(caja.valor); };
+      const ir = k => { if (k == null || k === i) return; i = ultimo = k; pinta(); avisa(); };
+      pista.addEventListener('keydown', e => {
+        if (i < 0) return;
+        const k = L.teclaEsfuerzo(i, e.key);
+        if (k == null) return;
+        e.preventDefault(); ir(k);
+      });
+      const enX = e => { const r = pista.getBoundingClientRect(); return L.paradaEn(e.clientX - r.left, r.width); };
+      pista.addEventListener('pointerdown', e => {
+        if (i < 0 || e.button !== 0) return;
+        e.preventDefault(); pista.focus();
+        try { pista.setPointerCapture(e.pointerId); } catch (x) { /* sin captura: el clic sirve igual */ }
+        caja.classList.add('arrastrando'); ir(enX(e));
+      });
+      pista.addEventListener('pointermove', e => { if (caja.classList.contains('arrastrando')) ir(enX(e)); });
+      const suelta = () => caja.classList.remove('arrastrando');
+      pista.addEventListener('pointerup', suelta); pista.addEventListener('pointercancel', suelta);
+      Object.defineProperty(caja, 'valor', { get: () => (i < 0 ? '' : E[i][0]), set: v => { const k = L.indiceEsfuerzo(v); i = k; if (k >= 0) ultimo = k; pinta(); sw.setAttribute('aria-checked', String(k < 0)); sw.lastChild.textContent = k < 0 ? 'Sí' : 'No'; } });
+      ui.pintar(caja, [ui.el('div', { class: 'esf-fila' }, [pista, texto]), ui.el('div', { class: 'esf-sw' }, [ui.el('span', { class: 'note' }, 'Según la tarea'), sw])]);
+      pinta();
+      return caja;
     },
 
     /* Botón de dos pasos para detener o borrar, sin diálogo nativo: el primer clic lo arma ("¿Seguro? Pulsa

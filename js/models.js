@@ -173,13 +173,15 @@
     cerrarSub();
     const k = clave(g.id, m.id), p = pref(), cav = Object.assign({ global: null, porModelo: {} }, D.ajustes.caveman);
     const opciones = m.suscripcion ? ESF_CLAUDE : ESF_OTROS;
-    const esf = el('select', { class: 'select', 'aria-label': 'Esfuerzo de ' + m.nombre, onchange: e => { const x = Object.assign({}, p.esfuerzo); if (e.target.value) x[k] = e.target.value; else delete x[k]; guardar({ esfuerzo: x }); pintarBoton(); abierto.sucio = true; } },
+    const ponerEsf = v => { const x = Object.assign({}, p.esfuerzo); if (v) x[k] = v; else delete x[k]; guardar({ esfuerzo: x }); pintarBoton(); abierto.sucio = true; };
+    // Bloque C: los modelos de Claude usan el deslizador de cinco paradas; los demás, sus tres niveles.
+    const esf = m.suscripcion ? ui.deslizadorEsfuerzo({ id: 'mod-esfuerzo', valor: p.esfuerzo[k] || '', nombre: 'Esfuerzo de ' + m.nombre, alCambiar: ponerEsf }) : el('select', { class: 'select', 'aria-label': 'Esfuerzo de ' + m.nombre, onchange: e => { const x = Object.assign({}, p.esfuerzo); if (e.target.value) x[k] = e.target.value; else delete x[k]; guardar({ esfuerzo: x }); pintarBoton(); abierto.sucio = true; } },
       [el('option', { value: '' }, 'Por defecto')].concat(opciones.map(o => el('option', { value: o, selected: p.esfuerzo[k] === o ? true : null }, o))));
     const cv = el('select', { class: 'select', 'aria-label': 'Caveman para ' + m.nombre, onchange: e => { const pm = Object.assign({}, cav.porModelo); if (e.target.value) pm[k] = e.target.value; else delete pm[k]; D.guardar({ caveman: { global: cav.global, porModelo: pm } }); abierto.sucio = true; } },
       CAVE.map(c => el('option', { value: c[0], selected: (cav.porModelo[k] || '') === c[0] ? true : null }, c[1])));
     const nodo = el('div', { class: 'card mod-sub', role: 'group', 'aria-label': 'Ajustes de ' + m.nombre }, [
       el('h3', { class: 'label' }, m.nombre),
-      el('label', { class: 'row between' }, ['Esfuerzo', esf]),
+      m.suscripcion ? el('div', { class: 'col mod-esf' }, [el('span', {}, 'Esfuerzo'), esf]) : el('label', { class: 'row between' }, ['Esfuerzo', esf]),
       m.suscripcion ? el('p', { class: 'note' }, 'Se pasa a Claude Code con --effort.') : g.local ? null : el('p', { class: 'note' }, 'En la nube solo se envía donde el proveedor lo documenta.'),
       el('label', { class: 'row between' }, ['Caveman', cv]),
       g.local ? el('p', { class: 'note' }, 'En modelos locales con poco contexto, caveman suma tokens de entrada en cada turno y puede no compensar.') : null,
@@ -189,7 +191,7 @@
     ]);
     abierto.caja.appendChild(nodo);
     abierto.sub = { nodo: nodo, volver: volver };
-    esf.focus();
+    (m.suscripcion ? esf.querySelector('[role="slider"]:not([aria-disabled="true"])') || esf.querySelector('[role="switch"]') : esf).focus();
   }
 
   // ---- Actualizar ----

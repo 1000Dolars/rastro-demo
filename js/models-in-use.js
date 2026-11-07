@@ -72,7 +72,7 @@
         el('td', {}, el('span', { class: 'rol' }, x.rol)),
         el('td', {}, [x.quien,
           x.tarea ? el('div', { class: 'note' }, 'Tarea: ' + x.tarea) : null,
-          x.modo ? el('div', { class: 'note' }, ['Modo ' + x.modo.nombre].concat(x.modo.id === 'bypassPermissions' ? [' ', ui.insignia('Sin permisos', 'alerta sinperm')] : [])) : null]),
+          x.modo ? el('div', { class: 'note' }, ['Modo ' + x.modo.nombre].concat(x.modo.id === 'bypassPermissions' ? [' ', ui.insignia('Omitir permisos', 'alerta sinperm')] : [])) : null]),
         el('td', { 'data-c': 'Modelo' }, x.modelo || sinDato(NO, x.nota)),
         el('td', { 'data-c': 'Esfuerzo' }, x.esfuerzo || sinDato('No informado')),
         el('td', {}, estadoIA(x.est)),
@@ -85,6 +85,10 @@
 
   D.alCambiar(pintar);
   document.addEventListener('rastro:vista', pintar);
-  setInterval(pintar, 2000);
+  // C7: la tabla vive en "Más detalles"; el repaso periódico solo corre si está abierto y la ventana se ve.
+  // Los cambios de datos (D.alCambiar) la repintan siempre, y al abrir el desplegable se pone al día.
+  const mas = $('#chat-mas');
+  if (mas) mas.addEventListener('toggle', () => { if (mas.open) pintar(); });
+  setInterval(() => { if (!document.hidden && (!mas || mas.open)) pintar(); }, 2000);
   RA.modelosUso = { pintar: pintar, filas: filas, estadoIA: estadoIA, punto: punto };
 })(window.RA = window.RA || {});

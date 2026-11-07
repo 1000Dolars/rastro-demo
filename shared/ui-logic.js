@@ -108,6 +108,9 @@
      palabras que la tarjeta de sesión); "Todas", todas. Siempre de la actividad más reciente a la más vieja.
      claveDe(s) da la clave de la tarjeta: trabajando, esperando, terminada, error o detenida. */
   const ACTIVAS = ['trabajando', 'esperando'];
+  /* Bloque G: un solo estado por sesión y una sola palabra para cada uno, en la lista de la barra lateral, las
+     tarjetas de Agentes, la lista Sesiones y la barra inferior. */
+  const PALABRA_SESION = { trabajando: 'Trabajando', permiso: 'Pide permiso', esperando: 'Esperándote', terminada: 'Terminada', error: 'Error', detenida: 'Detenida' };
   // Última actividad: la que dice la sesión (tUlt) o, si no la trae, su último evento, su final o su inicio.
   function ultimaActividad(s) {
     if (!s) return 0;
@@ -131,7 +134,8 @@
      proceso principal lo valida con esta misma función; lo desconocido vuelve a lo de fábrica. */
   function estadoChat3(x) {
     x = x && typeof x === 'object' ? x : {};
-    return { lado: x.lado !== false, filtro: x.filtro === 'todas' ? 'todas' : 'activas' };
+    // Bloque B: el panel Contexto va plegado salvo que se haya abierto a propósito.
+    return { lado: x.lado === true, filtro: x.filtro === 'todas' ? 'todas' : 'activas' };
   }
 
   /* ---- Disposición de los paneles en cuadrícula (rediseño de abril, docs/REDISENO-ABRIL.md, punto 1) ----
@@ -266,7 +270,70 @@
     return nombre + ': columna ' + (p.col + 1) + ' de ' + p.cols + (p.filas > 1 ? (p.fila === 0 ? ', arriba' : ', abajo') : '') + '.';
   }
 
-  const api = { PAN_COLS: PAN_COLS, PAN_FILAS: PAN_FILAS, PAN_ALTO_MIN: PAN_ALTO_MIN, panInicial: panInicial, estadoPaneles: estadoPaneles, posicionPanel: posicionPanel, abrirPanel: abrirPanel,
+  /* Bloque C: esfuerzo de Claude (se pasa con --effort). Cinco paradas, la misma escala en el compositor y en
+     Nueva sesión. '' es "Según la tarea" (el defecto de Claude Code), que va en un interruptor aparte. */
+  const ESF_CLAUDE = [['low', 'Bajo'], ['medium', 'Medio'], ['high', 'Alto'], ['xhigh', 'Muy alto'], ['max', 'Máximo']];
+  const indiceEsfuerzo = v => ESF_CLAUDE.findIndex(e => e[0] === v);
+  // Parada que deja una tecla, o null si la tecla no mueve el deslizador.
+  function teclaEsfuerzo(i, tecla) {
+    const max = ESF_CLAUDE.length - 1;
+    const j = { ArrowLeft: i - 1, ArrowDown: i - 1, ArrowRight: i + 1, ArrowUp: i + 1, PageDown: i - 1, PageUp: i + 1, Home: 0, End: max }[tecla];
+    return j == null ? null : Math.max(0, Math.min(max, j));
+  }
+  // Parada más cercana a x (px desde el borde izquierdo de una pista de `ancho` px).
+  function paradaEn(x, ancho) {
+    const max = ESF_CLAUDE.length - 1;
+    return ancho > 0 ? Math.max(0, Math.min(max, Math.round(x / ancho * max))) : 0;
+  }
+
+  // C13: cálculos que salieron de las funciones de pintado de views.js.
+  // Pasos de la línea de tiempo: filtro (todo, errores, cambios), solo los últimos `tope` y el que lleva el foco
+  // (el elegido si sigue a la vista; si no, el último).
+  function pasosVisibles(evs, filtro, tope, elegido) {
+    let l = evs;
+    if (filtro === 'errores') l = l.filter(e => e.est === 'error');
+    else if (filtro === 'cambios') l = l.filter(e => e.parche || e.cuenta || e.sinDiff);
+    const total = l.length;
+    tope = tope || 150;
+    if (total > tope) l = l.slice(total - tope);
+    const foco = l.some(e => e.id === elegido) ? elegido : l.length ? l[l.length - 1].id : null;
+    return { evs: l, total: total, ocultos: Math.max(0, total - tope), foco: foco };
+  }
+  // Medida del mapa de actividad para el ancho disponible: celda (8 o 12 px), hueco (2 o 4 px) y, por días,
+  // cuántas semanas caben (de 24 a 52, nunca más de las que hay datos).
+  function medidaMapa(ancho, modo, nDias) {
+    const caben = (c, g) => Math.floor((ancho + g) / (c + g));
+    let celda = 8, hueco = 4;
+    if (modo === 'horas') {
+      if (caben(12, 4) >= 24) celda = 12; else if (caben(8, 4) < 24) hueco = 2;
+      return { celda: celda, hueco: hueco };
+    }
+    let semanas;
+    if (caben(12, 4) >= 52) { celda = 12; semanas = 52; }
+    else if (caben(8, 4) >= 24) semanas = Math.min(52, caben(8, 4));
+    else { hueco = 2; semanas = Math.max(24, Math.min(52, caben(8, 2))); }
+    return { celda: celda, hueco: hueco, semanas: Math.min(semanas, Math.floor(nDias / 7)) };
+  }
+  // Etiquetas de mes sobre el mapa por días: [columna, texto] en la semana en la que empieza cada mes, sin
+  // pisar la anterior (al menos 3 columnas entre una y otra). nombreMes(t) da el texto.
+  function mesesMapa(dias, nombreMes) {
+    const out = [];
+    for (let i = 0; i < dias.length; i += 7) {
+      const mes = new Date(dias[i].t).getMonth();
+      if ((i === 0 || mes !== new Date(dias[i - 7].t).getMonth()) && (!out.length || i / 7 - out[out.length - 1][0] >= 3)) out.push([i / 7, nombreMes(dias[i].t)]);
+    }
+    return out;
+  }
+
+  // Tiempo transcurrido desde t (bloque H): "ahora", "hace 5 min", "hace 3 h", "hace 2 d", "hace 1 mes", "hace 3 meses".
+  // Vacío si no hay t.
+  function relativo(t, ahora) {
+    if (!t) return '';
+    const s = Math.max(0, ((ahora == null ? Date.now() : ahora) - t) / 1000), n = d => Math.floor(s / d);
+    return s < 60 ? 'ahora' : s < 3600 ? 'hace ' + n(60) + ' min' : s < 86400 ? 'hace ' + n(3600) + ' h' : s < 2592000 ? 'hace ' + n(86400) + ' d' : 'hace ' + n(2592000) + (n(2592000) === 1 ? ' mes' : ' meses');
+  }
+
+  const api = { pasosVisibles: pasosVisibles, medidaMapa: medidaMapa, mesesMapa: mesesMapa, PALABRA_SESION: PALABRA_SESION, relativo: relativo, ESF_CLAUDE: ESF_CLAUDE, indiceEsfuerzo: indiceEsfuerzo, teclaEsfuerzo: teclaEsfuerzo, paradaEn: paradaEn, PAN_COLS: PAN_COLS, PAN_FILAS: PAN_FILAS, PAN_ALTO_MIN: PAN_ALTO_MIN, panInicial: panInicial, estadoPaneles: estadoPaneles, posicionPanel: posicionPanel, abrirPanel: abrirPanel,
     cerrarPanel: cerrarPanel, moverPanel: moverPanel, tecladoPanel: tecladoPanel, dondePanel: dondePanel,
     MODOS: MODOS, PUNTOS: PUNTOS, puntosModo: puntosModo, ESFUERZOS: ESFUERZOS, anilloEsfuerzo: anilloEsfuerzo,
     NOMBRE_REPO: NOMBRE_REPO, nombreRepo: nombreRepo, estadoCI: estadoCI, NOMBRE_CI: NOMBRE_CI, limitador: limitador, popupTurno: popupTurno, explicarError: explicarError,

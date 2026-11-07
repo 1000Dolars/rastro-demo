@@ -108,7 +108,7 @@
         ]))) : el('p', { class: 'note det-vacio' }, todas.length ? 'Nada en curso. ' + todas.length + (todas.length === 1 ? ' tarea terminada.' : ' tareas terminadas.') : 'Nada en segundo plano.'),
         todas.length ? el('button', { type: 'button', class: 'btn btn-small', id: 'det-tar-ver', onclick: () => RA.paneles && RA.paneles.abrir('tareas') }, 'Ver la salida de las tareas') : null
       ]),
-      el('div', { class: 'card-pie' }, [el('h2', { class: 'label', id: 't-det-tar' }, 'Tareas en segundo plano'), curso.length ? el('span', { class: 'mono det-pie-dato' }, String(curso.length)) : null])
+      el('div', { class: 'card-pie' }, [el('h2', { class: 'label', id: 't-det-tar' }, 'Segundo plano'), curso.length ? el('span', { class: 'mono det-pie-dato' }, String(curso.length)) : null])
     ]);
   }
 

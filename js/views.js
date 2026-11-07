@@ -90,7 +90,8 @@
     if (!partes.length) { if (n) n.remove(); b.removeAttribute('aria-describedby'); return; }
     if (!n) { n = el('span', { id: 'nav-aviso', class: 'nav-aviso' }); b.after(n); }
     n.textContent = '';
-    n.appendChild(el('span', { 'aria-hidden': 'true' }, (err ? '✕' + err : '') + (err && esp ? ' ' : '') + (esp ? '!' + esp : '')));
+    // Bloque I: el contador dice qué cuenta ("1 error · 2 esperan"), no solo "✕1 !2".
+    n.appendChild(el('span', { 'aria-hidden': 'true' }, [err ? err + (err === 1 ? ' error' : ' errores') : '', esp ? esp + (esp === 1 ? ' espera' : ' esperan') : ''].filter(Boolean).join(' · ')));
     n.appendChild(el('span', { class: 'sr' }, 'Sesiones: ' + partes.join(', ')));
     n.title = 'Sesiones: ' + partes.join(', ');
     n.classList.toggle('error', !!err);
@@ -105,12 +106,12 @@
     $('#cab-nombre').textContent = v === 'chat' || !TITULOS[v] ? (s ? s.nombre : '') : TITULOS[v];
     $('#cab-ruta').textContent = s ? (v === 'chat' || !TITULOS[v] ? s.carpeta || '' : s.nombre + (s.carpeta ? ' · ' + s.carpeta : '')) : '';
     $('#cab-ruta').title = s && s.carpeta ? s.carpeta : '';
-    if (!s) { ui.pintar($('#ses-insignias'), null); return; }
+    $('#cab-lectura').hidden = !s || s.origen === 'app' || (v !== 'chat' && !!TITULOS[v]);
+    if (!s) return;
     const so = $('#ses-elegida');
     ui.pintar(so, E.sesiones.map(x => el('option', { value: x.id }, x.nombre + ' · ' + tarjeta(x).nombre)));
     avisoPestana();
     so.value = s.id;
-    ui.pintar($('#ses-insignias'), insigniasSesion(s, true));
   }
 
   /* ---- Heatmap ---- Pinta en `caja` el encabezado (recuadro de glifo, nombre y periodo, cifra a
@@ -118,10 +119,9 @@
      leyenda. Por día enseña 52 semanas si caben; si no, las que quepan, con un mínimo de 24. */
   function mapa(caja, modo) {
     const A = D.estado.actividad, ancho = caja.clientWidth - 34 - 30;     // menos el relleno y la columna de días
-    const caben = (c, g) => Math.floor((ancho + g) / (c + g));
-    let celda = 8, hueco = 4, cs = [], arriba = [], total = 0, inicial = -1, periodo, nombre;
+    const m = RA.logica.medidaMapa(ancho, modo, A.dias.length), celda = m.celda, hueco = m.hueco;
+    let cs = [], arriba = [], total = 0, inicial = -1, periodo, nombre;
     if (modo === 'horas') {
-      if (caben(12, 4) >= 24) celda = 12; else if (caben(8, 4) < 24) hueco = 2;
       const max = Math.max.apply(null, [1].concat([].concat.apply([], A.horas)));
       for (let h = 0; h < 24 && A.horas.length; h++) {
         if (h % 6 === 0) arriba.push([h, h + ' h']);
@@ -129,19 +129,14 @@
       }
       periodo = 'Semana tipo, por hora'; nombre = 'Actividad por hora y día de la semana';
     } else {
-      let semanas;
-      if (caben(12, 4) >= 52) { celda = 12; semanas = 52; }
-      else if (caben(8, 4) >= 24) semanas = Math.min(52, caben(8, 4));
-      else { hueco = 2; semanas = Math.max(24, Math.min(52, caben(8, 2))); }
-      semanas = Math.min(semanas, Math.floor(A.dias.length / 7));
+      const semanas = m.semanas;
       const dias = A.dias.slice(A.dias.length - semanas * 7), max = Math.max.apply(null, [1].concat(dias.map(d => d.n)));
       dias.forEach((d, i) => {
         cs.push({ n: nivel(d.n, max), e: d.e > 0, t: ui.fecha(d.t) + (d.futuro ? ', aún no ha llegado' : ', ' + plural(d.n, 'llamada', 'llamadas') + ', ' + plural(d.e, 'error', 'errores')) });
         total += d.n;
         if (!d.futuro) inicial = i;                  // se empieza en hoy, no en los días que aún no llegan
-        // Mes sobre la columna en la que empieza, si no pisa la etiqueta anterior.
-        if (i % 7 === 0 && (i === 0 || new Date(d.t).getMonth() !== new Date(dias[i - 7].t).getMonth()) && (!arriba.length || i / 7 - arriba[arriba.length - 1][0] >= 3)) arriba.push([i / 7, mesCorto.format(d.t).replace('.', '')]);
       });
+      arriba = RA.logica.mesesMapa(dias, t => mesCorto.format(t).replace('.', ''));
       periodo = semanas === 52 ? 'Últimas 52 semanas' : 'Últimas ' + semanas + ' semanas'; nombre = 'Actividad por día, ' + periodo.toLowerCase();
     }
     if (!cs.length) return ui.pintar(caja, el('p', { class: 'note' }, 'Todavía no hay actividad. Aparecerá cuando una sesión trabaje: escribe un mensaje en Chat o pulsa Crear sesión.'));
@@ -255,7 +250,7 @@
       el('ul', { class: 'carrete' + (sube ? ' sube' : ''), 'aria-label': 'Últimas llamadas de herramienta' }, ult.map(e => el('li', {}, [
         G.svg(G.deHerramienta(e.h), null), el('span', {}, C.agente(s, e.ag).cod), el('span', { class: 't' }, herr(e.h) + ' ' + e.res)
       ]))),
-      el('div', { class: 'carrete-pie' }, s.est === 'curso' ? el('i', { role: 'img', 'aria-label': 'En curso' }) : el('i', { class: 'fin', role: 'img', 'aria-label': 'Sesión terminada' }))
+      el('div', { class: 'carrete-pie' }, s.est === 'curso' ? el('i', { role: 'img', 'aria-label': 'Trabajando' }) : el('i', { class: 'fin', role: 'img', 'aria-label': 'Sesión terminada' }))
     ]);
   }
 
@@ -283,7 +278,7 @@
     if (e.est === 'error') return el('span', { class: 'mal' }, herr(e.h) + ': ' + String(e.err).split('\n')[0]);
     if (e.parche || e.cuenta) { const c = e.cuenta || C.cuenta(e.parche); return '+' + c.mas + ' −' + c.menos + (e.nuevo ? ' · archivo nuevo' : ''); }
     if (e.sinDiff) return 'cambio sin diferencias';
-    if (e.est === 'curso') return e.fondo ? 'en segundo plano' : 'en curso';
+    if (e.est === 'curso') return e.fondo ? 'en segundo plano' : 'trabajando';
     return String(e.sal || 'sin salida').split('\n')[0];
   }
 
@@ -295,13 +290,9 @@
     const S = sel(), a = C.agente(s, S.agente), caja = $('#tiempo'), y = caja.scrollTop;
     const pegado = !caja.firstChild || caja.scrollHeight - y - caja.clientHeight < 48;
     ui.segmentado($('#tl-filtro'), [['todo', 'Todo'], ['errores', 'Errores'], ['cambios', 'Cambios']], S.filtro, v => { S.filtro = v; tiempo(s); }, 'Filtrar pasos');
-    let evs = C.eventos(s, a.id);
-    if (S.filtro === 'errores') evs = evs.filter(e => e.est === 'error');
-    else if (S.filtro === 'cambios') evs = evs.filter(e => e.parche || e.cuenta || e.sinDiff);
     // Una sesión larga tiene miles de pasos: se pintan los últimos y los anteriores se piden con un botón.
-    const total = evs.length, tope = S.tope || 150;
-    if (total > tope) evs = evs.slice(total - tope);
-    const foco = evs.some(e => e.id === S.evento) ? S.evento : evs.length ? evs[evs.length - 1].id : null;
+    const tope = S.tope || 150, v = RA.logica.pasosVisibles(C.eventos(s, a.id), S.filtro, tope, S.evento);
+    const evs = v.evs, total = v.total, foco = v.foco;
     const pasos = evs.map(e => {
       const hijo = e.hijo && C.agente(s, e.hijo), abierto = e.id === S.evento;
       return el('li', { class: 'paso', 'data-id': e.id }, [
@@ -309,7 +300,7 @@
         el('div', { class: 'paso-cab' }, [
           G.svg(G.deHerramienta(e.h), null), el('span', { class: 'nom', title: e.h }, herr(e.h)),
           el('span', { class: 'res' }, e.res + (hijo ? ' → ' + hijo.cod : '')),
-          e.fondo ? ui.insignia('Segundo plano') : el('span', { class: 'chip' }, e.dur == null ? 'en curso' : ui.dur(e.dur))
+          e.fondo ? ui.insignia('Segundo plano') : el('span', { class: 'chip' }, e.dur == null ? 'trabajando' : ui.dur(e.dur))
         ]),
         el('button', { type: 'button', class: 'sub-cab', 'data-id': e.id, 'aria-expanded': String(abierto), 'aria-controls': abierto ? 'det-' + e.id : null, tabindex: e.id === foco ? '0' : '-1' }, [
           agMini(a), el('span', { class: 'sr' }, herr(e.h) + ' ' + e.res + ': '), el('span', { class: 'vista' }, vistaPrevia(e)), ui.galon()
@@ -319,7 +310,7 @@
     });
     // Final del riel: borde vivo si el agente sigue en curso; círculo relleno si ya terminó.
     const enCurso = a.est === 'curso' && s.est === 'curso';
-    const cola = enCurso ? el('div', { class: 'vivo', role: 'img', 'aria-label': 'En curso' }) : a.t0 ? el('div', { class: 'fin', role: 'img', 'aria-label': 'Fin de la actividad' }) : null;
+    const cola = enCurso ? el('div', { class: 'vivo', role: 'img', 'aria-label': 'Trabajando' }) : a.t0 ? el('div', { class: 'fin', role: 'img', 'aria-label': 'Fin de la actividad' }) : null;
     ui.pintar(caja, [
       total > tope ? el('button', { type: 'button', class: 'btn btn-small', id: 'ver-antes', onclick: () => { S.tope = tope + 300; tiempo(s); } }, 'Ver ' + Math.min(300, total - tope) + ' pasos anteriores') : null,
       el('div', { class: 'riel' }, [
@@ -392,7 +383,7 @@
   // =====================================================================================
   function sesiones() {
     const E = D.estado, S = sel();
-    ui.segmentado($('#ses-filtro'), [['todas', 'Todas'], ['curso', 'En curso'], ['espera', 'Por aprobar'], ['fin', 'Terminadas']], S.filtroSes, v => { S.filtroSes = v; sesiones(); }, 'Filtrar sesiones');
+    ui.segmentado($('#ses-filtro'), [['todas', 'Todas'], ['curso', 'Trabajando'], ['espera', 'Por aprobar'], ['fin', 'Terminadas']], S.filtroSes, v => { S.filtroSes = v; sesiones(); }, 'Filtrar sesiones');
     const pasa = { todas: () => true, curso: s => s.est === 'curso' || s.est === 'deteniendo', espera: s => s.est === 'espera', fin: s => ['listo', 'error', 'detenido'].indexOf(s.est) >= 0 }[S.filtroSes];
     // Lo que necesita a la persona (error o esperando) va primero; el resto conserva su orden (más reciente arriba).
     const prio = s => { const c = tarjeta(s).clave; return c === 'error' || c === 'esperando' ? 0 : 1; };
@@ -419,7 +410,7 @@
   /* Estado de la tarjeta de una sesión, en las palabras de la persona: trabajando, esperando tu respuesta
      (un permiso pendiente, una aprobación, o el turno cerrado con la sesión aún abierta), terminada,
      error o detenida; con la forma de punto de siempre y la última acción. */
-  const TARJETA = { trabajando: 'Trabajando', esperando: 'Esperando tu respuesta', terminada: 'Terminada', error: 'Error', detenida: 'Detenida' };
+  const TARJETA = RA.logica.PALABRA_SESION;
   function tarjeta(s) {
     const ch = RA.chat, p = ch && ch.permiso(s.id), enChat = ch && /enviando|respondiendo/.test(ch.estado(s.id) || '');
     const clave = p || s.est === 'espera' || (s.est === 'listo' && s.vivo) ? 'esperando' : s.est === 'curso' || s.est === 'deteniendo' || enChat ? 'trabajando' : s.est === 'error' ? 'error' : s.est === 'listo' ? 'terminada' : 'detenida';
@@ -486,7 +477,7 @@
     return [].concat(
       par('Ahora', el('span', { class: 'mono' }, /^Pide permiso/.test(t.ultima) || !ev ? t.ultima : ev.h + ' · ' + ev.res)),
       par('Modelo', s.modelo ? ui.modelo(s.modelo).replace(/^\w/, c => c.toUpperCase()) + (s.esfuerzo ? ' · esfuerzo ' + s.esfuerzo : '') : 'No informado por Claude Code'),
-      par('Modo de uso', m ? (m.id === 'bypassPermissions' ? ui.insignia('Sin permisos', 'alerta sinperm') : m.nombre) : 'No informado por Claude Code'),
+      par('Modo de uso', m ? (m.id === 'bypassPermissions' ? ui.insignia('Omitir permisos', 'alerta sinperm') : m.nombre) : 'No informado por Claude Code'),
       par('Tareas', p ? p.hechas + ' de ' + p.total + ' (' + Math.round(100 * p.hechas / p.total) + ' %)' + (p.actual ? ' · en curso: ' + p.actual : '') : 'Esta sesión no tiene lista de tareas: no hay porcentaje.')
     );
   }
@@ -700,7 +691,7 @@
     medir.onclick = () => { medir.disabled = true; medir.textContent = 'Midiendo'; D.medirUso().then(() => { medir.disabled = false; medir.textContent = 'Medir ahora'; }); };
     // Plan: la fecha de renovación se escribe a mano; avisa cuando faltan 15 días o menos.
     const dias = D.ajustes.renueva ? Math.ceil((new Date(D.ajustes.renueva + 'T00:00:00').getTime() - D.ahora()) / 86400000) : null;
-    const plan = ui.tarjeta('Plan', [
+    const plan = ui.tarjeta('Suscripción', [
       el('div', { class: 'campo' }, [
         el('label', { class: 'label', for: 'renueva' }, 'Fecha de renovación'),
         el('input', { id: 'renueva', class: 'input', type: 'date', value: D.ajustes.renueva, onchange: ev => { D.guardar({ renueva: ev.target.value }); uso(); $('#renueva').focus(); } })

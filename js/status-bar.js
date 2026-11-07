@@ -12,13 +12,15 @@
     const s = RA.vistas && RA.vistas.actual(), R = RA.fase4 && RA.fase4.estado ? RA.fase4.estado().recursos : null;
     const out = [];
     // Sesión y modelo
-    const est = s ? { curso: ['curso', 'trabajando'], deteniendo: ['curso', 'deteniéndose'], listo: ['ok', 'lista'], error: ['error', 'con error'], detenido: ['neutro', 'detenida'] }[s.est] || ['neutro', ''] : null;
+    // Bloque G: el estado es el de la tarjeta (RA.vistas.tarjeta), con la misma palabra que en la barra lateral.
+    const tj = s && RA.vistas && RA.vistas.tarjeta ? RA.vistas.tarjeta(s) : null;
+    const est = tj ? [{ trabajando: 'curso', esperando: 'atencion', terminada: 'ok', error: 'error', detenida: 'neutro' }[tj.clave] || 'neutro', tj.nombre.toLowerCase()] : null;
     // Sesión: identificador corto y estado ("4f2a91c0 · trabajando"); el nombre va en el título.
     out.push({ id: 'be-sesion', nombre: 'Sesión', valor: s ? String(s.id).slice(0, 8) + (est[1] ? ' · ' + est[1] : '') : 'sin dato', estado: s ? est[0] : 'neutro', ir: 'sesiones', titulo: s ? s.nombre : '' });
     // Modelo y modo de uso (Añadido 3): "Opus 5.5 · Modo Plan". Sin permisos, además, su insignia propia.
     const m = D.modoDe(s), mod = s && s.modelo ? ui.modelo(s.modelo).replace(/^\w/, c => c.toUpperCase()) : 'sin dato';
     out.push({ id: 'be-modelo', nombre: 'Modelo', valor: mod + (m ? ' · Modo ' + m.nombre : ''), estado: 'neutro', ir: 'chat' });
-    if (m && m.id === 'bypassPermissions') out.push({ id: 'be-sinperm', nombre: '', valor: '[ SIN PERMISOS ]', estado: 'error', ir: 'chat', clase: 'sinperm' });
+    if (m && m.id === 'bypassPermissions') out.push({ id: 'be-sinperm', nombre: '', valor: 'Omitir permisos', estado: 'error', ir: 'chat', clase: 'sinperm' });
     // IA local: sin cargar, cargada (con la memoria de la GPU que ocupa) o no responde, frente a su tope
     // (80 % de la VRAM por defecto: 6,4 GB en una GPU de 8 GB).
     let ia = { valor: 'sin dato', estado: 'neutro' };
@@ -28,7 +30,8 @@
       const usa = R.vramOllamaMB || 0, pct = usa / R.topeVramMB;
       ia = { valor: usa ? 'cargada · ' + GB(usa) + ' de ' + GB(R.topeVramMB) : 'sin cargar · tope ' + GB(R.topeVramMB), estado: !usa ? 'neutro' : pct > 1 ? 'error' : pct >= 0.9 ? 'atencion' : 'ok' };
     }
-    out.push({ id: 'be-ia', nombre: 'IA local', valor: ia.valor, estado: ia.estado, ir: 'recursos' });
+    // Bloque H: la IA local solo aparece si hay algo que vigilar (no responde, o cerca o por encima del tope).
+    if (ia.estado === 'error' || ia.estado === 'atencion') out.push({ id: 'be-ia', nombre: 'IA local', valor: ia.valor, estado: ia.estado, ir: 'recursos' });
     // Uso del plan
     const b = D.estado.uso.bloques[0];
     out.push({ id: 'be-plan', nombre: 'Uso del plan', valor: !b ? 'sin dato' : b.pct != null ? Math.round(b.pct) + ' % usado' : b.tokens ? '≈' + ui.tokens(b.tokens) + ' tokens (estimado)' : 'sin dato (estimado)', estado: b && b.pct != null ? (b.pct >= 90 ? 'error' : b.pct >= 75 ? 'atencion' : 'ok') : 'neutro', ir: 'consumo' });
@@ -36,11 +39,12 @@
     const viva = D.estado.conexion === 'viva', activa = D.estado.sesiones.some(x => x.est === 'curso' || x.est === 'deteniendo');
     out.push({ id: 'be-conexion', nombre: 'Conexión', valor: !viva ? 'sin conexión' : activa ? 'trabajando' : 'en reposo', estado: !viva ? 'error' : 'ok', ir: 'sesiones' });
     // Modo juego
-    out.push({ id: 'be-juego', nombre: 'Modo juego', valor: R && R.juego ? (R.juego.activo ? 'activo' : 'apagado') : 'sin dato', estado: R && R.juego && R.juego.activo ? 'atencion' : 'neutro', ir: 'recursos' });
+    // Modo juego: solo mientras está activo (bloque H).
+    if (R && R.juego && R.juego.activo) out.push({ id: 'be-juego', nombre: 'Modo juego', valor: 'activo', estado: 'atencion', ir: 'recursos' });
     return out;
   }
 
-  const NOMBRE = { ok: 'bien', atencion: 'atención', error: 'problema', curso: 'en curso', neutro: '' };
+  const NOMBRE = { ok: 'bien', atencion: 'atención', error: 'problema', curso: 'trabajando', neutro: '' };
   function pintar() {
     const caja = $('#barra-estado');
     if (!caja) return;
@@ -60,7 +64,9 @@
   D.alCambiar(pintar);
   document.addEventListener('rastro:estado', pintar);
   document.addEventListener('rastro:vista', pintar);
-  setInterval(pintar, 2000);
+  // C7: con la ventana oculta o minimizada no se repinta; al volver se pone al día.
+  setInterval(() => { if (!document.hidden) pintar(); }, 2000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) pintar(); });
   pintar();
   RA.barraEstado = { pintar: pintar };
 })(window.RA = window.RA || {});

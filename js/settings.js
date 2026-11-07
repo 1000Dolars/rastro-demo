@@ -9,7 +9,7 @@
   const APARTADOS = [
     ['general', 'General'], ['cuenta', 'Cuenta'], ['uso', 'Uso'], ['privacidad', 'Privacidad'], ['capacidades', 'Capacidades'],
     ['conectores', 'Conectores'], ['skills', 'Skills'], ['plugins', 'Plugins'], ['claude-code', 'Claude Code'],
-    ['economicas', 'IA económicas'], ['notificaciones', 'Notificaciones']
+    ['economicas', 'IA económicas'], ['notificaciones', 'Notificaciones'], ['accesibilidad', 'Accesibilidad']
   ];
   const TEMAS = [['dark', 'Oscuro'], ['light', 'Claro'], ['auto', 'Automático']];
   let actual = 'general';
@@ -29,6 +29,15 @@
 
   // ---------- Apartados ----------
   const PINTAR = {
+    // Bloque A: lo que vivía en la cabecera (Leer métricas) y en la franja del pie (teclas propias).
+    accesibilidad() {
+      const tecla = (id, clave, que) => { const b = el('button', { type: 'button', id: id, class: 'key' }); RA.app.teclaCambiable(b, clave, que); return b; };
+      return [grupo('Lectura y teclas', [
+        fila('Leer métricas', 'Dice por la región de estado los agentes activos, las llamadas, los errores y el uso de la sesión elegida. También con la tecla de abajo.', boton('leer', 'Leer métricas', () => RA.app.leerMetricas())),
+        fila('Tecla de las métricas', 'Pulsa el botón y luego la tecla nueva; Escape cancela.', tecla('tecla-leer', 'leer', 'dice las métricas')),
+        fila('Tecla de la búsqueda (con Control)', 'Pulsa el botón y luego la letra nueva; Escape cancela.', tecla('tecla-buscar', 'buscar', 'abre la búsqueda con Control'))
+      ])];
+    },
     general() {
       const A = D.ajustes;
       return [

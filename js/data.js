@@ -72,7 +72,7 @@
       // Claridad (Fase C): modo Simple por defecto, la guía de primer uso y la vista previa antes de enviar.
       avanzado: false, guiaVista: false, previa: true,
       // Chat en tres columnas: panel derecho abierto (desde 1280 px) y filtro de la lista Sesiones.
-      chat3: { lado: true, filtro: 'activas' },
+      chat3: { lado: false, filtro: 'activas' },
       // Disposición de los paneles en cuadrícula (js/panes.js, RA.logica.estadoPaneles).
       paneles: { columnas: [['chat']], anchos: {}, altos: {} },
       // Por evento: sonido, notificación de escritorio y volumen.

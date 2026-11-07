@@ -40,7 +40,7 @@
     <div id="barra-desliza" class="sb-carpetas"></div>
     <!-- Insignias permanentes: si lo que se ve son datos de muestra y si la cuenta está bloqueada. -->
     <div class="sb-estado">
-      <span id="b-muestra" class="badge" hidden><span aria-hidden="true">[ </span>Datos de muestra<span aria-hidden="true"> ]</span></span>
+      <span id="b-muestra" class="badge" hidden>Datos de muestra</span>
       <span id="b-auth" class="badge" hidden></span>
       <!-- Fase 4: modo juego (interruptor): pausa la IA local y libera la GPU. -->
       <button id="b-juego" type="button" class="btn btn-small sb-juego" aria-pressed="false" hidden>Modo juego</button>
@@ -70,23 +70,22 @@
       <button id="barra-btn" type="button" class="icono" aria-controls="barra" aria-expanded="true" aria-label="Cerrar barra lateral" title="Barra lateral"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path class="hueco-i" d="M2 3h12v10H2zM6 3v10"/></svg></button>
       <div id="ses-barra" class="cab-ses">
         <span id="cab-nombre" class="cab-nombre"></span>
+        <!-- D4: la sesión no la lanzó Rastro; aquí solo se observa. -->
+        <span id="cab-lectura" class="cab-lectura" role="img" aria-label="Solo lectura" title="Solo lectura: esta sesión no la lanzó Rastro, aquí solo se observa." hidden><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></svg></span>
         <span id="cab-ruta" class="cab-ruta mono"></span>
         <!-- Vista de la transcripción (Ctrl+O): Normal, Pensamiento o Detallado. -->
         <span class="pan-mas-caja"><button id="vista-trans" type="button" class="cab-vista mono" aria-haspopup="menu" aria-expanded="false" hidden>Normal</button></span>
         <label class="sr" for="ses-elegida">Sesión elegida</label>
         <select id="ses-elegida" class="select cab-select" title="Cambiar de sesión"></select>
-        <!-- Se ve al recibir el foco: dice las cifras por la región de estado. -->
-        <button id="leer" type="button" class="btn btn-small peek">Leer métricas</button>
       </div>
       <span class="hueco"></span>
-      <div id="ses-insignias" class="badges cab-insignias"></div>
       <!-- Fase 4: aviso de que Claude no está disponible (modo continuidad). -->
       <button id="b-cont" type="button" class="badge alerta" hidden></button>
       <!-- Solo si la sesión elegida tiene Remote Control activo. -->
       <span id="b-remote" class="badge remote" hidden></span>
       <!-- Centro de avisos (js/notifications.js): historial con contador de no leídos. -->
       <span class="avisos-caja">
-        <button id="avisos-btn" type="button" class="icono" aria-expanded="false" aria-controls="avisos-panel" aria-label="Abrir avisos"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path class="hueco-i" d="M4 11V7a4 4 0 0 1 8 0v4l1.5 1.5h-11zM6.5 14h3"/></svg><span id="avisos-cuenta" class="cuenta" hidden></span></button>
+        <button id="avisos-btn" type="button" class="icono" aria-expanded="false" aria-controls="avisos-panel" aria-label="Abrir avisos" title="Avisos"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path class="hueco-i" d="M4 11V7a4 4 0 0 1 8 0v4l1.5 1.5h-11zM6.5 14h3"/></svg><span id="avisos-cuenta" class="cuenta" hidden></span></button>
         <section id="avisos-panel" class="avisos-panel" role="dialog" aria-labelledby="avisos-t" hidden></section>
       </span>
       <button id="sonido-activar" type="button" class="btn btn-small" hidden>Activar sonido</button>
@@ -113,7 +112,6 @@
     <!-- ===== Chat: la vista inicial. La mascota con el campo de prompts y, debajo, la sesión en vivo ===== -->
     <section id="v-chat" class="view" aria-labelledby="h-chat">
       <h1 id="h-chat" class="sr" tabindex="-1">Chat</h1>
-      <p class="intro">Escribe a Claude y sigue al momento lo que hace la sesión elegida.</p>
       <!-- Guía de primer uso: se puede omitir y volver a abrir desde Ajustes (js/app.js). -->
       <section id="guia" class="card guia" aria-labelledby="guia-t" hidden></section>
       <p id="cargando" class="label" hidden>Cargando</p>
@@ -157,14 +155,16 @@
               <div class="comp-fila">
                 <!-- Modo de uso (Selector Modo del diseño): qué puede hacer Claude sin preguntar. Se pinta en js/chat.js. -->
                 <fieldset id="masc-modo" class="modo selector-modo"></fieldset>
-                <span class="hueco"></span>
-                <!-- Esfuerzo (esfuerzo.json): el anillo dice el nivel ("Medio ◯"); el menú ofrece Bajo, Medio, Alto y Personalizado. -->
-                <span class="pan-mas-caja esf-caja"><button id="masc-esfuerzo" type="button" class="comp-pildora esf-boton" aria-haspopup="menu" aria-expanded="false" data-v="">Esfuerzo</button></span>
                 <button id="masc-modelo" type="button" class="comp-pildora mod-boton" aria-haspopup="dialog"><span class="sr">Cambiar modelo: </span>Automático · reparto de Rastro</button>
+                <span class="hueco"></span>
+                <!-- Bloque B: lo demás (esfuerzo de la IA local, cola, biblioteca, caveman, Remote Control) va en "Más". -->
+                <button id="masc-mas" type="button" class="comp-pildora comp-mas" aria-expanded="false" aria-controls="masc-mas-panel" aria-label="Mostrar más opciones del mensaje" title="Esfuerzo de la IA local, cola, biblioteca, caveman y Remote Control">Más</button>
                 <button id="masc-enviar" type="submit" class="comp-enviar">Enviar</button>
               </div>
             </form>
-            <div class="comp-chips">
+            <div id="masc-mas-panel" class="comp-chips" role="group" aria-label="Más opciones del mensaje" hidden>
+              <!-- Esfuerzo de la IA local y económica (esfuerzo.json); no es el esfuerzo de Claude (DECISIONES-PENDIENTES.md, D2). -->
+              <span class="pan-mas-caja esf-caja"><button id="masc-esfuerzo" type="button" class="chip-b esf-boton" aria-haspopup="menu" aria-expanded="false" data-v="">Esfuerzo</button></span>
               <button id="masc-encolar" type="button" class="chip-b" aria-label="Añadir a la cola" title="Añadir este mensaje a la cola: sale cuando termine lo que está en marcha">Cola<span id="masc-cola-n"></span></button>
               <button id="masc-biblio" type="button" class="chip-b" aria-haspopup="dialog" aria-label="Abrir la biblioteca de prompts">Biblioteca</button>
               <button id="masc-nueva" type="button" class="chip-b" aria-label="Empezar nueva sesión con esto">Nueva sesión con esto</button>
@@ -173,11 +173,10 @@
               </select>
               <!-- Remote Control de la sesión elegida: activo, o abrirla con Remote Control en la Terminal. -->
               <button id="masc-rc" type="button" class="chip-b" aria-pressed="false" hidden>Remote Control</button>
-              <span class="hueco"></span>
-              <!-- Contexto ocupado por la sesión elegida (último turno del agente principal). -->
-              <span id="masc-ctx" class="comp-ctx" hidden></span>
             </div>
             <div class="comp-meta">
+              <!-- Contexto ocupado por la sesión elegida (último turno del agente principal). -->
+              <span id="masc-ctx" class="comp-ctx" hidden></span>
               <!-- A dónde irá lo que escribas, en vivo (cambia al apuntar a Encolar o a los envíos forzados). -->
               <p id="masc-envio" class="destino-envio comp-destino"></p>
               <span id="masc-ayuda" class="comp-ayuda mono">Enter envía · Mayús+Enter línea · ↑ ↓ anteriores</span>
@@ -186,7 +185,7 @@
           <!-- Lo que ya mostraba Chat y el diseño no pone a la vista: sigue aquí, plegado. -->
           <details id="chat-mas" class="chat-mas">
             <summary>Más detalles de la sesión: contexto, entorno, GitHub, conectores, modelos, línea de tiempo, actividad, agentes y herramientas</summary>
-            <div class="chat-mas-cuerpo">
+            <div class="chat-mas-cuerpo" tabindex="0" role="region" aria-label="Más detalles de la sesión">
               <!-- Las tarjetas de detalles (js/session-details.js y js/github-card.js), que estaban en el panel derecho
                    hasta el chat en tres columnas: Contexto, Entorno, GitHub, Conectores y Tareas en segundo plano. -->
               <div class="det-grupo">
@@ -465,9 +464,6 @@
   </main>
 
   <footer class="foot">
-    <span><kbd>Ctrl</kbd>+<button id="tecla-buscar" type="button" class="key"></button> busca</span>
-    <span><button id="tecla-leer" type="button" class="key"></button> dice las métricas</span>
-    <span><kbd>Esc</kbd> cierra</span>
     <!-- Solo con datos de muestra: escenarios y simulación para revisar los estados de la maqueta. -->
     <div id="muestra" class="muestra" hidden>
       <span class="label">Muestra</span>

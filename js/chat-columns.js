@@ -40,6 +40,13 @@
     ]), caja.firstChild);
     return true;
   }
+  // Sesiones que enseña la lista, con su filtro (todas las que pasan; se pintan las TOPE primeras).
+  function enLista() {
+    if (!RA.vistas) return [];
+    return L.filtrarSesiones(D.estado.sesiones || [], est().filtro, s => RA.vistas.tarjeta(s).clave);
+  }
+  // D7: ids que la lista tiene a la vista. La barra (js/sidebar.js) no las repite en sus carpetas.
+  function idsLista() { return new Set(enLista().slice(0, TOPE).map(s => s.id)); }
   function fila(s, elegida) {
     const t = RA.vistas.tarjeta(s), p = L.ultimoPrompt(s), tu = L.ultimaActividad(s), hora = horaDe(tu);
     const firma = [s.nombre, t.clave, hora, p, elegida].join('|');
@@ -67,7 +74,7 @@
     if (!RA.app || !RA.vistas || !montarLista()) return;
     const f = est().filtro, todas = (D.estado.sesiones || []);
     ui.$$('#sb-sesiones .sb-ses-filtro button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.f === f)));
-    const lista = L.filtrarSesiones(todas, f, s => RA.vistas.tarjeta(s).clave), vista = lista.slice(0, TOPE), sel = RA.app.sel.sesion;
+    const lista = enLista(), vista = lista.slice(0, TOPE), sel = RA.app.sel.sesion;
     const ol = $('#sb-ses-lista');
     const lis = vista.map(s => fila(s, s.id === sel));
     lis.forEach((li, i) => { if (ol.children[i] !== li) ol.insertBefore(li, ol.children[i] || null); });
@@ -81,6 +88,7 @@
     if (est().filtro === v) return;
     guardar({ filtro: v });
     pintarLista();
+    if (RA.barra) RA.barra.pintar();   // D7: lo que sale de la lista vuelve a su carpeta, y al revés
   }
   // Elegir una sesión: la misma que usan la cabecera y Chat (RA.barra.abrir cambia RA.app.sel.sesion y va a Chat).
   function elegir(id) {
@@ -100,10 +108,10 @@
     const vivos = (s.agentes || []).filter(a => a.est === 'curso');
     ui.pintar(tar, [
       el('div', { class: 'esc det-esc' }, [
-        el('div', { class: 'row between lado-sub' }, [el('h3', { class: 'label' }, 'Plan'), plan ? el('span', {}, [el('span', { class: 'plan-cuenta', 'aria-hidden': 'true' }, p.hechas + '/' + p.total), el('span', { class: 'sr' }, p.hechas + ' de ' + p.total + ' tareas hechas')]) : null]),
+        el('div', { class: 'row between lado-sub' }, [el('h3', { class: 'label' }, 'Tareas'), plan ? el('span', {}, [el('span', { class: 'plan-cuenta', 'aria-hidden': 'true' }, p.hechas + ' de ' + p.total), el('span', { class: 'sr' }, p.hechas + ' de ' + p.total + ' tareas hechas')]) : null]),
         plan || el('p', { class: 'note det-vacio' }, 'Esta sesión no tiene lista de tareas ahora mismo.'),
         el('div', { class: 'det-sep' }),
-        el('div', { class: 'row between lado-sub' }, [el('h3', { class: 'label', id: 't-lado-ag' }, 'Agentes trabajando'), el('span', {}, [el('span', { class: 'plan-cuenta', 'aria-hidden': 'true' }, String(vivos.length)), el('span', { class: 'sr' }, vivos.length + (vivos.length === 1 ? ' agente trabajando' : ' agentes trabajando'))])]),
+        el('div', { class: 'row between lado-sub' }, [el('h3', { class: 'label', id: 't-lado-ag', title: 'P: agente principal de la sesión · A1, A2…: subagentes, en el orden en que empezaron' }, 'Agentes trabajando'), el('span', {}, [el('span', { class: 'plan-cuenta', 'aria-hidden': 'true' }, String(vivos.length)), el('span', { class: 'sr' }, vivos.length + (vivos.length === 1 ? ' agente trabajando' : ' agentes trabajando'))])]),
         vivos.length ? el('ul', { class: 'lado-agentes', 'aria-labelledby': 't-lado-ag' }, vivos.slice(0, 12).map(a => el('li', {}, [
           G.deAgente(a, null, 4), ui.insignia(a.cod), el('span', { class: 'lado-ag-tipo' }, (a.padre ? 'Subagente · ' : '') + (a.tipo || 'agente'))
         ])).concat(vivos.length > 12 ? [el('li', { class: 'note' }, '+' + (vivos.length - 12) + ' más')] : [])) : el('p', { class: 'note det-vacio' }, 'Ningún agente trabaja ahora.'),
@@ -187,6 +195,6 @@
     setInterval(pintarLista, 30000);
   }
 
-  RA.chat3 = { aplicar: aplicar, pintarLista: pintarLista, pintarPanel: pintarPanel, abrirLado: abrirLado, cerrarLado: cerrarLado, filtrar: filtrar, elegir: elegir, abierto: () => !!flot };
+  RA.chat3 = { idsLista: idsLista, aplicar: aplicar, pintarLista: pintarLista, pintarPanel: pintarPanel, abrirLado: abrirLado, cerrarLado: cerrarLado, filtrar: filtrar, elegir: elegir, abierto: () => !!flot };
   if (document.readyState === 'complete') montar(); else addEventListener('DOMContentLoaded', montar);
 })(window.RA = window.RA || {});

@@ -127,7 +127,7 @@
     caja.dataset.ci = p.pr ? estadoCi(p.pr) : '';
     ui.pintar(caja, [
       el('div', { class: 'esc det-esc' }, cuerpo(s)),
-      el('div', { class: 'card-pie' }, [el('h2', { class: 'label', id: 't-det-gh' }, 'GitHub'), p.t ? el('span', { class: 'mono det-pie-dato', title: 'Se consulta como mucho una vez por minuto' }, 'hace ' + Math.max(0, Math.round((D.ahora() - p.t) / 60000)) + ' min') : null])
+      el('div', { class: 'card-pie' }, [el('h2', { class: 'label', id: 't-det-gh' }, 'GitHub'), p.t ? el('span', { class: 'mono det-pie-dato', title: 'Se consulta como mucho una vez por minuto' }, RA.logica.relativo(p.t, D.ahora())) : null])
     ]);
     if (foco && $('#' + foco)) $('#' + foco).focus();
     // Pulso: el PR o el CI cambiaron. Un anillo que se abre y se apaga (600 ms), sin moverse con menos movimiento.

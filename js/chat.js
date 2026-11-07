@@ -208,7 +208,7 @@
       : elegido ? 'Se aplica desde el próximo mensaje.'
       : m ? 'Ahora: ' + m.nombre + ' (el último que usó esta sesión). Elige uno para fijarlo.' : 'Sin elegir: la sesión usa el modo de sus ajustes de Claude Code.';
     ui.pintar(caja, [
-      el('legend', { class: 'sr' }, ['Modo de permisos: ' + (m ? m.nombre : 'el de sus ajustes'), sin ? ui.insignia('Sin permisos', 'alerta sinperm') : null]),
+      el('legend', { class: 'sr' }, ['Modo de permisos: ' + (m ? m.nombre : 'el de sus ajustes'), sin ? ui.insignia('Omitir permisos', 'alerta sinperm') : null]),
       el('button', { type: 'button', id: 'modo-boton', class: 'modo-boton' + (sin ? ' sin' : ''), 'aria-label': 'Cambiar modo de permisos: ' + (m ? m.nombre : 'Modo de la sesión'), 'aria-haspopup': 'true', 'aria-expanded': String(modoAbierto), 'aria-controls': modoAbierto ? 'masc-modo-ops' : null, title: nota,
         onclick: () => { modoAbierto = !modoAbierto; modoPintado = ''; pintarModo(s); if (modoAbierto) { const f = $('#masc-modo-ops [tabindex="0"]'); if (f) f.focus(); } } },
         [nivel(def ? act : '', sin), el('span', {}, m ? m.nombre : 'Modo de la sesión'), el('span', { class: 'mono modo-flecha', 'aria-hidden': 'true' })]),
@@ -342,7 +342,10 @@
       : s.entorno === 'ssh' ? 'Claude en ' + s.host + ', por SSH'
       : orq ? 'Claude o una IA económica, según el reparto automático' : 'Claude';
     const m = D.modoDe(s);
-    ui.pintar(caja, ['Se enviará a: ', el('b', {}, s.nombre), ' · ', a].concat(m ? [' · modo ', el('b', {}, m.nombre)] : []));
+    // Bloque G: si lo recibe Claude, se cita su fila de Modelos en uso ("► Programa · Opus 5.5").
+    const fila = /^Claude/.test(a) && RA.modelosUso ? RA.modelosUso.filas(s).find(f => f.id === 'claude') : null;
+    const cita = fila ? [' · ', el('span', { class: 'dest-fila', title: 'La fila de Modelos en uso (Más detalles) que recibe el mensaje' }, '► ' + fila.rol + (fila.modelo ? ' · ' + fila.modelo : ''))] : [];
+    ui.pintar(caja, ['Se enviará a: ', el('b', {}, s.nombre), ' · ', a].concat(cita, m ? [' · modo ', el('b', {}, m.nombre)] : []));
   }
   /* Vista previa (B6): destino, modelo, tokens aproximados, coste y aviso de mensaje largo para una IA
      económica. Las reglas y el umbral son los del orquestador (en el proceso principal). Enter o "Enviar

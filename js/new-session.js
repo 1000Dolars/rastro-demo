@@ -21,9 +21,8 @@
   const PARTE = '[A-Za-z0-9_][A-Za-z0-9._-]*', HOST = new RegExp('^(' + PARTE + '@)?' + PARTE + '$');
   const malHost = h => !h.trim() ? 'Escribe el equipo: usuario@equipo o un nombre de tu ~/.ssh/config.' : !HOST.test(h.trim()) ? 'Equipo no válido: usuario@equipo o un nombre de tu ~/.ssh/config, sin espacios ni guion al principio.' : '';
   const malCarpeta = c => !c.trim() ? 'Escribe la carpeta del proyecto en el equipo remoto.' : !/^(~|~\/.*|\/.*)$/.test(c.trim()) || /[\0-\x1f]/.test(c) ? 'La carpeta empieza por / o por ~/ (la carpeta personal del equipo remoto).' : '';
-  const PERM = [['estricto', 'Manual'], ['ediciones', 'Aceptar ediciones'], ['plan', 'Plan'], ['auto', 'Auto'], ['sinpermisos', 'Sin permisos']];
+  const PERM = [['estricto', 'Manual'], ['ediciones', 'Aceptar ediciones'], ['plan', 'Plan'], ['auto', 'Auto'], ['sinpermisos', 'Omitir permisos']];
   const DESDE_AJUSTES = { default: 'estricto', acceptEdits: 'ediciones', plan: 'plan', auto: 'auto', bypassPermissions: 'sinpermisos' };
-  const ESF = [['', 'Por defecto'], ['low', 'Bajo'], ['medium', 'Medio'], ['high', 'Alto'], ['xhigh', 'Muy alto'], ['max', 'Máximo']];
   let w = null, turno = 0, tComprobar = null;
 
   const unir = (a, b) => D.so.une(String(a || '').trim(), b);
@@ -380,8 +379,8 @@
     permisos.value = w.permisos; permisos.addEventListener('change', () => { w.permisos = permisos.value; pintarBarra(); });
     const modelo = el('select', { id: 'ns-modelo', class: 'select ns-sel', 'aria-label': 'Modelo' }, D.MODELOS.map(m => el('option', { value: m[0] }, m[1])));
     modelo.value = w.modelo; modelo.addEventListener('change', () => { w.modelo = modelo.value; });
-    const esf = el('select', { id: 'ns-esfuerzo', class: 'select ns-sel', 'aria-label': 'Esfuerzo del modelo' }, ESF.map(x => el('option', { value: x[0] }, x[1])));
-    esf.value = w.esfuerzo; esf.addEventListener('change', () => { w.esfuerzo = esf.value; });
+    // Bloque C: la misma escala que el compositor, en un deslizador; "Según la tarea" es el interruptor.
+    const esf = ui.deslizadorEsfuerzo({ id: 'ns-esfuerzo', valor: w.esfuerzo, nombre: 'Esfuerzo del modelo', alCambiar: v => { w.esfuerzo = v; } });
     ui.pintar(v, [
       el('h1', { id: 'h-nueva', class: 'sr', tabindex: '-1' }, 'Nueva sesión'),
       el('div', { class: 'ns' }, [
@@ -401,7 +400,7 @@
             el('button', { type: 'submit', id: 'ns-enviar', class: 'comp-enviar' }, 'Enviar')
           ])
         ]),
-        el('p', { id: 'ns-sinperm', class: 'aviso-largo', hidden: true }, '! Sin permisos: Claude ejecuta lo que decida sin preguntar y puede salir de la carpeta del proyecto. Úsalo solo en carpetas que puedas perder.'),
+        el('p', { id: 'ns-sinperm', class: 'aviso-largo', hidden: true }, '! Omitir permisos: Claude ejecuta lo que decida sin preguntar y puede salir de la carpeta del proyecto. Úsalo solo en carpetas que puedas perder.'),
         el('p', { id: 'ns-falta', class: 'note', 'aria-live': 'polite' }),
         el('p', { id: 'ns-error', role: 'alert' }),
         el('p', { class: 'note' }, 'La sesión se lanza con el CLI oficial de Claude Code y tu suscripción, nunca con una clave de API. Primero diseña (DESIGN.md y una maqueta) y espera tu aprobación antes de programar.')

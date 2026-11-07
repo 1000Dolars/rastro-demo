@@ -19,7 +19,7 @@
     { id: 'archivos', nombre: 'Archivos', glifo: 'Carpeta' }
   ];
   const VISTAS = { consola: 'Terminal', cambios: 'Cambios', archivos: 'Archivos' };   // paneles hechos con una vista
-  const NOMBRES = { chat: 'Conversación', consola: 'Terminal', cambios: 'Cambios', navegador: 'Navegador', archivos: 'Archivos', plan: 'Plan', tareas: 'Tareas en segundo plano', lateral: 'Chat lateral' };
+  const NOMBRES = { chat: 'Conversación', consola: 'Terminal', cambios: 'Cambios', navegador: 'Navegador', archivos: 'Archivos', plan: 'Tareas', tareas: 'Segundo plano', lateral: 'Chat lateral' };
   const IDS = Object.keys(NOMBRES).filter(x => x !== 'chat');
   const registrados = {};          // id -> { nombre, montar(cuerpo), pintar(), menu(), alCerrar() }
   const ESTRECHO = matchMedia('(max-width:1279px)'), ANCHO = matchMedia('(min-width:1024px)'), RAIL = matchMedia('(min-width:1280px)');
@@ -187,7 +187,7 @@
   const anchoReal = cab => { const w = nodo(cab) && nodo(cab).parentNode.classList.contains('pan-col') ? Math.round(nodo(cab).parentNode.getBoundingClientRect().width) : 0; return w || est.anchos[cab] || ANCHO0; };
 
   function ponerLado(v) {
-    const e3 = Object.assign({ lado: true, filtro: 'activas' }, D.ajustes.chat3);
+    const e3 = Object.assign({ lado: false, filtro: 'activas' }, D.ajustes.chat3);
     if (e3.lado === v) return;
     D.guardar({ chat3: Object.assign(e3, { lado: v }) });
     if (RA.chat3) RA.chat3.aplicar();
@@ -411,9 +411,18 @@
   function opcionesMenu() {
     const s = RA.vistas.actual(), plegado = document.body.classList.contains('panel-plegado');
     const ops = [];
-    if (ESTRECHO.matches) { BOTONES.forEach(b => ops.push({ texto: b.nombre, atajo: b.atajo, panel: b.id, fn: () => P.abrir(b.id) })); ops.push('-'); }
-    if (P.tieneFondo(s)) ops.push({ texto: 'Tareas en segundo plano', panel: 'tareas', fn: () => P.abrir('tareas') });
-    if (P.tienePlan(s)) ops.push({ texto: 'Plan', panel: 'plan', fn: () => P.abrir('plan') });
+    // Bloque J: los paneles van siempre aquí (la cabecera queda en cinco controles).
+    BOTONES.forEach(b => ops.push({ texto: b.nombre, atajo: b.atajo, panel: b.id, id: 'pan-menu-' + b.id, fn: () => P.abrir(b.id) })); ops.push('-');
+    // Y la vista de la transcripción (Ctrl+O la alterna).
+    const CV = RA.conversacion;
+    if (CV && s) {
+      ops.push({ texto: 'Vista de la transcripción · Ctrl+O', titulo: true });
+      CV.VISTAS.forEach(([id, nombre]) => ops.push({ texto: nombre, radio: true, marcado: CV.vista() === id, id: 'vt-' + id,
+        desactivado: id === 'pensamiento' && !CV.conPens(s) ? 'Esta sesión no tiene pensamiento visible de Claude.' : null, fn: () => CV.poner(id) }));
+      ops.push('-');
+    }
+    if (P.tieneFondo(s)) ops.push({ texto: 'Segundo plano', panel: 'tareas', fn: () => P.abrir('tareas') });
+    if (P.tienePlan(s)) ops.push({ texto: 'Tareas', panel: 'plan', fn: () => P.abrir('plan') });
     if (ops.length && ops[ops.length - 1] !== '-') ops.push('-');
     // El panel Contexto (js/chat-columns.js): columna desde 1280 px; por debajo, superpuesto.
     const ancho = matchMedia('(min-width: 1280px)').matches;

@@ -39,7 +39,7 @@
     return { usado: Math.round(R.gpu.usadaMB / 102.4) / 10, total: Math.round(R.gpu.totalMB / 102.4) / 10, tope: (R.config && R.config.topeVram) || R.topeGpu || 80, juego: !!(R.juego && R.juego.activo), nombre: R.gpu.nombre || '' };
   }
   function actividad(s, ag) {
-    return RA.calc.eventos(s, ag).slice(-6).map(e => [e.h, e.res || '', e.cuenta ? '+' + e.cuenta.mas + ' −' + e.cuenta.menos : e.est === 'curso' ? 'en curso' : e.est === 'error' ? 'falló' : e.dur != null ? ui.dur(e.dur) : '', e.est === 'curso' ? 'curso' : e.est === 'error' ? 'error' : 'ok']);
+    return RA.calc.eventos(s, ag).slice(-6).map(e => [e.h, e.res || '', e.cuenta ? '+' + e.cuenta.mas + ' −' + e.cuenta.menos : e.est === 'curso' ? 'trabajando' : e.est === 'error' ? 'falló' : e.dur != null ? ui.dur(e.dur) : '', e.est === 'curso' ? 'curso' : e.est === 'error' ? 'error' : 'ok']);
   }
   function estadoSesion(s) {
     const p = RA.chat && RA.chat.permiso && RA.chat.permiso(s.id), u = usoPlan();
