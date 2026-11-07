@@ -1,0 +1,174 @@
+{
+  "communities": {
+    "0": [
+      "2026_11_07_c13",
+      "2026_11_07_c14",
+      "2026_11_07_c5",
+      "2026_11_07_c6",
+      "2026_11_07_c7",
+      "2026_11_07_d1_leer_metricas_ctrl_k",
+      "2026_11_07_d2",
+      "2026_11_07_d3",
+      "2026_11_07_d4_icono_ojo_solo_lectura",
+      "2026_11_07_d5",
+      "2026_11_07_d6",
+      "2026_11_07_d7_sesiones_una_vez_barra",
+      "2026_11_07_sesion_03a4bf67",
+      "2026_11_07_tarjeta_github_ahora",
+      "2026_11_07_tests_electron",
+      "2026_11_07_tests_unitarias",
+      "2026_11_07_tests_visuales",
+      "2026_11_07_turno_083512",
+      "decisiones_pendientes"
+    ],
+    "1": [
+      "2026_11_07_commit_5116362",
+      "2026_11_07_estilos",
+      "2026_11_07_fuentes",
+      "2026_11_07_github_pages",
+      "2026_11_07_index_html",
+      "2026_11_07_js",
+      "2026_11_07_rastro_demo",
+      "2026_11_07_shared"
+    ],
+    "2": [
+      "2026_11_07_commit_a8e51f1",
+      "2026_11_07_rastro"
+    ],
+    "3": [
+      "2026_11_07_hook_stop",
+      "2026_11_07_memoria_proyecto"
+    ]
+  },
+  "cohesion": {
+    "0": 0.10526315789473684,
+    "1": 0.25,
+    "2": 1.0,
+    "3": 1.0
+  },
+  "gods": [
+    {
+      "id": "2026_11_07_turno_083512",
+      "label": "Turno 2026-11-07 08:35:12",
+      "degree": 21
+    },
+    {
+      "id": "2026_11_07_rastro_demo",
+      "label": "rastro-demo (repo público)",
+      "degree": 9
+    },
+    {
+      "id": "2026_11_07_rastro",
+      "label": "Rastro (repo privado)",
+      "degree": 3
+    },
+    {
+      "id": "2026_11_07_memoria_proyecto",
+      "label": "Memoria del proyecto 2026-11-07",
+      "degree": 2
+    },
+    {
+      "id": "2026_11_07_c13",
+      "label": "Pendiente C13",
+      "degree": 1
+    },
+    {
+      "id": "2026_11_07_c14",
+      "label": "Pendiente C14",
+      "degree": 1
+    },
+    {
+      "id": "2026_11_07_c5",
+      "label": "Pendiente C5",
+      "degree": 1
+    },
+    {
+      "id": "2026_11_07_c6",
+      "label": "Pendiente C6",
+      "degree": 1
+    },
+    {
+      "id": "2026_11_07_c7",
+      "label": "Pendiente C7",
+      "degree": 1
+    },
+    {
+      "id": "2026_11_07_d1_leer_metricas_ctrl_k",
+      "label": "D1: Leer métricas en Ctrl+K",
+      "degree": 1
+    }
+  ],
+  "surprises": [
+    {
+      "source": "rastro-demo (repo público)",
+      "target": "Rastro (repo privado)",
+      "source_files": [
+        "2026-11-07.md",
+        "2026-11-07.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "shares_data_with",
+      "note": "Bridges community 1 → community 2"
+    },
+    {
+      "source": "Memoria del proyecto 2026-11-07",
+      "target": "Turno 2026-11-07 08:35:12",
+      "source_files": [
+        "2026-11-07.md",
+        "2026-11-07.md"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "conceptually_related_to",
+      "note": "Bridges community 0 → community 3"
+    },
+    {
+      "source": "Turno 2026-11-07 08:35:12",
+      "target": "Rastro (repo privado)",
+      "source_files": [
+        "2026-11-07.md",
+        "2026-11-07.md"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "note": "Bridges community 0 → community 2"
+    },
+    {
+      "source": "Turno 2026-11-07 08:35:12",
+      "target": "rastro-demo (repo público)",
+      "source_files": [
+        "2026-11-07.md",
+        "2026-11-07.md"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "note": "Bridges community 0 → community 1"
+    }
+  ],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `Turno 2026-11-07 08:35:12` connect `Rastro UI Design Decisions` to `Public Demo Repository`, `Rastro Private Repository`, `Project Memory Automation`?",
+      "why": "High betweenness centrality (0.894) - this node is a cross-community bridge."
+    },
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `Pendiente C13`, `Pendiente C14`, `Pendiente C5` to the rest of the system?",
+      "why": "27 weakly-connected nodes found - possible documentation gaps or missing edges."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Rastro UI Design Decisions` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.10526315789473684 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `rastro-demo (repo público)` connect `Public Demo Repository` to `Rastro UI Design Decisions`, `Rastro Private Repository`?",
+      "why": "High betweenness centrality (0.418) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `Rastro (repo privado)` connect `Rastro Private Repository` to `Rastro UI Design Decisions`, `Public Demo Repository`?",
+      "why": "High betweenness centrality (0.067) - this node is a cross-community bridge."
+    }
+  ]
+}

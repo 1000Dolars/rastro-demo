@@ -1061,10 +1061,12 @@ body.barra-plegada .shell > main, body.barra-plegada .shell > .foot { grid-colum
    56 px por pantalla, Chat 1a con panel derecho de 320 px y Agentes con el mapa hub and spoke.
    Solo tokens: el oscuro del diseño son los mismos valores del tema oscuro de arriba.
    ===================================================================================== */
-body { background-image:none; }
+/* La barra de estado empieza a la derecha de la barra lateral: el relleno del body (fase B) dejaba una franja
+   negra bajo la barra lateral y la subía 44 px al llegar al final. .shell ya reserva el hueco del pie. */
+body { background-image:none; padding-bottom:0; }
 .app { display:flex; min-height:100vh; }
 .columna { flex:1; min-width:0; display:flex; flex-direction:column; }
-.shell, body.barra-plegada .shell { display:block; max-width:none; margin:0; padding:16px 24px calc(var(--pie, 44px) + 24px); }
+.shell, body.barra-plegada .shell { display:block; max-width:none; margin:0; padding:16px 24px calc(var(--pie, 44px) + var(--pie-estado, 44px) + 24px); }
 .shell > main, .shell > .foot { grid-column:auto; }
 
 /* ---- Barra lateral (Rastro Sidebar) ---- */
@@ -1244,7 +1246,8 @@ body.panel-plegado .chat-lado { display:none; }
 .chat-mas { margin-top:16px; margin-bottom:24px; border:1px solid var(--line); border-radius:var(--r-card); }
 .chat-mas > summary { padding:14px 18px; cursor:pointer; color:var(--ink-2); font:500 14px/1.3 var(--f-ui); }
 .chat-mas[open] > summary { border-bottom:1px solid var(--line); }
-.chat-mas-cuerpo { display:flex; flex-direction:column; gap:var(--gap); padding:16px; max-height:70vh; overflow-y:auto; overscroll-behavior:contain; }
+.chat-mas-cuerpo { position:relative; display:flex; flex-direction:column; gap:var(--gap); padding:16px; max-height:70vh; overflow-y:auto; overscroll-behavior:contain; }
+/* position:relative: sin ella, los textos .sr (absolutos) de dentro escapan del recorte y alargan la página. */
 .chat-mas-cuerpo:focus-visible { outline:2px solid var(--ink); outline-offset:-2px; }
 /* Bloque J: dentro de Más detalles las tarjetas no llevan marco propio; queda el del desplegable y el del escenario. */
 .chat-mas-cuerpo .card { padding:0; background:none; border:0; border-radius:0; }
@@ -1487,7 +1490,6 @@ body.en-agentes .foot { display:none; }
 body.en-agentes .shell { padding-bottom:0; }
 body.en-agentes main { height:calc(100vh - 56px - var(--pie, 44px)); overflow:hidden; }
 body.en-agentes .app { height:100vh; overflow:hidden; }
-body.en-agentes .app { height:calc(100vh - var(--pie-estado, 44px)); }
 body.en-agentes { overflow:hidden; }
 .top .buscar { flex:none; overflow:hidden; }
 .top .avisos-caja { flex:none; }
