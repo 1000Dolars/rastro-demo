@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="robots" content="noindex">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <!-- Política de contenido estricta: solo archivos propios, sin scripts en línea y sin red. Única
+       excepción: elementos de estilo creados por script (los usa xterm.js para el tema de la consola; la
+       interfaz nunca interpreta texto ajeno como HTML, así que nadie más puede crear uno). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; style-src-elem 'self' 'unsafe-inline'; style-src-attr 'none'; font-src 'self'; img-src 'self' data:">
+  <title>Rastro</title>
+  <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
+  <script src="js/theme.js"></script>
+  <link rel="stylesheet" href="vendor/xterm/xterm.css">
+  <link rel="stylesheet" href="styles/styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<div class="app">
+  <!-- Barra lateral (js/sidebar.js), como la de Claude Code Desktop: Nueva sesión, Buscar, secciones,
+       Fijadas, las sesiones agrupadas por proyecto (con filtro, Agrupar y Ordenar, y Ver todas) y, abajo,
+       el pie con el menú de la cuenta. Fija desde 900 px; por debajo, cajón. -->
+  <aside id="barra" class="barra" aria-label="Barra lateral">
+    <div class="sb-cab"><div id="marca" class="brand"></div><span id="sb-version" class="sb-version"></span></div>
+    <button id="nueva" type="button" class="sb-nueva" aria-haspopup="dialog" aria-label="Crear nueva sesión" title="Nueva sesión (Ctrl+N)"><span class="sb-nueva-t">Nueva sesión</span><span class="sb-atajo" aria-hidden="true"><kbd class="t-mod" data-k="Ctrl"></kbd><kbd data-k="N"></kbd></span></button>
+    <!-- Buscar (Ctrl+K): sesiones, prompts anteriores, archivos tocados, agentes y herramientas. -->
+    <button id="buscar" type="button" class="sb-buscar" aria-haspopup="dialog" title="Buscar (Ctrl+K)">
+      <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" class="ico" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>
+      <span class="crece">Buscar</span>
+      <span class="atajo" aria-hidden="true"><kbd class="t-mod" data-k="Ctrl"></kbd><kbd class="t-buscar" data-k="K"></kbd></span>
+    </button>
+    <nav id="nav" class="nav sb-nav" aria-label="Secciones">
+      <button type="button" data-vista="sesiones" data-glifo="Agente">Agentes</button>
+      <button type="button" data-vista="uso" data-glifo="Datos">Consumo</button>
+      <!-- Programadas ("Scheduled" en Claude Code Desktop; antes "Routines"): tareas locales con horario (js/scheduled.js). -->
+      <button id="nav-programadas" type="button" data-vista="programadas" data-glifo="Otra">Programadas</button>
+    </nav>
+    <div id="barra-desliza" class="sb-carpetas"></div>
+    <!-- Insignias permanentes: si lo que se ve son datos de muestra y si la cuenta está bloqueada. -->
+    <div class="sb-estado">
+      <span id="b-muestra" class="badge" hidden><span aria-hidden="true">[ </span>Datos de muestra<span aria-hidden="true"> ]</span></span>
+      <span id="b-auth" class="badge" hidden></span>
+      <!-- Fase 4: modo juego (interruptor): pausa la IA local y libera la GPU. -->
+      <button id="b-juego" type="button" class="btn btn-small sb-juego" aria-pressed="false" hidden>Modo juego</button>
+    </div>
+    <!-- Pie: menú de la cuenta (ajustes, atajos, estado del equipo, guía) y el tema. -->
+    <div class="sb-pie">
+      <span class="pan-mas-caja sb-cuenta-caja">
+        <button id="cuenta-btn" type="button" class="sb-cuenta" aria-haspopup="menu" aria-expanded="false" aria-label="Abrir el menú de la cuenta: Tu cuenta">
+          <span class="sb-avatar" aria-hidden="true"></span>
+          <span id="cuenta-nombre" class="sb-cuenta-n">Tu cuenta</span>
+        </button>
+        <!-- Conexión: si Rastro ve lo que hace Claude Code y si alguna sesión trabaja. -->
+        <span id="b-conexion" class="sb-cuenta-m mono"></span>
+      </span>
+      <!-- Botón circular del tema: pasa de oscuro a claro y a automático (sigue al sistema). -->
+      <button id="tema" type="button" class="icono"></button>
+    </div>
+  </aside>
+  <div id="barra-fondo" class="barra-fondo" hidden></div>
+  <div id="lado-fondo" class="barra-fondo" hidden></div>
+
+  <div class="columna">
+  <div class="cabeza">
+    <!-- Cabecera de la pantalla (56 px del diseño): qué sesión se mira y, a la derecha, su estado, búsqueda y avisos.
+         En la app de escritorio es también la zona de arrastre de la ventana. -->
+    <header class="top">
+      <button id="barra-btn" type="button" class="icono" aria-controls="barra" aria-expanded="true" aria-label="Cerrar barra lateral" title="Barra lateral"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path class="hueco-i" d="M2 3h12v10H2zM6 3v10"/></svg></button>
+      <div id="ses-barra" class="cab-ses">
+        <span id="cab-nombre" class="cab-nombre"></span>
+        <span id="cab-ruta" class="cab-ruta mono"></span>
+        <!-- Vista de la transcripción (Ctrl+O): Normal, Pensamiento o Detallado. -->
+        <span class="pan-mas-caja"><button id="vista-trans" type="button" class="cab-vista mono" aria-haspopup="menu" aria-expanded="false" hidden>Normal</button></span>
+        <label class="sr" for="ses-elegida">Sesión elegida</label>
+        <select id="ses-elegida" class="select cab-select" title="Cambiar de sesión"></select>
+        <!-- Se ve al recibir el foco: dice las cifras por la región de estado. -->
+        <button id="leer" type="button" class="btn btn-small peek">Leer métricas</button>
+      </div>
+      <span class="hueco"></span>
+      <div id="ses-insignias" class="badges cab-insignias"></div>
+      <!-- Fase 4: aviso de que Claude no está disponible (modo continuidad). -->
+      <button id="b-cont" type="button" class="badge alerta" hidden></button>
+      <!-- Solo si la sesión elegida tiene Remote Control activo. -->
+      <span id="b-remote" class="badge remote" hidden></span>
+      <!-- Centro de avisos (js/notifications.js): historial con contador de no leídos. -->
+      <span class="avisos-caja">
+        <button id="avisos-btn" type="button" class="icono" aria-expanded="false" aria-controls="avisos-panel" aria-label="Abrir avisos"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path class="hueco-i" d="M4 11V7a4 4 0 0 1 8 0v4l1.5 1.5h-11zM6.5 14h3"/></svg><span id="avisos-cuenta" class="cuenta" hidden></span></button>
+        <section id="avisos-panel" class="avisos-panel" role="dialog" aria-labelledby="avisos-t" hidden></section>
+      </span>
+      <button id="sonido-activar" type="button" class="btn btn-small" hidden>Activar sonido</button>
+      <!-- Barra de la sesión (js/panes.js): Terminal, Cambios, Navegador y Archivos, y el menú ⋮ con los
+           paneles sin botón y lo que no cabe en estrecho. Solo en el apartado Code. -->
+      <div id="pan-botones" class="pan-botones" role="group" aria-label="Paneles de la sesión"></div>
+      <span class="pan-mas-caja"><button id="pan-mas" type="button" class="icono pan-mas" aria-haspopup="menu" aria-expanded="false" aria-label="Abrir más paneles y opciones de la sesión" title="Más"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M8 3.2v.1M8 8v.1M8 12.8v.1"/></svg></button></span>
+      <!-- Mostrar u ocultar el panel de detalles de la sesión. -->
+      <button id="panel-btn" type="button" class="btn btn-small cab-panel" aria-controls="chat-lado" aria-expanded="true" aria-label="Ver el panel Contexto" title="Tareas y cambios de la sesión">Contexto</button>
+      <!-- Ajustes: la tuerca. Al pulsarla se "desenrosca" (gira y se desplaza) y se abre la vista Ajustes. -->
+      <button id="ajustes-btn" type="button" class="icono tuerca" aria-label="Abrir ajustes" title="Ajustes"></button>
+      <!-- Por debajo de 1024 px la barra lateral (con la lista Sesiones) es un panel superpuesto: este botón la abre. -->
+      <button id="menu" type="button" class="btn btn-small menu" aria-expanded="false" aria-controls="barra" aria-label="Ver la lista Sesiones">Sesiones</button>
+    </header>
+  </div>
+  <div class="banners">
+    <p id="sin-conexion" class="banner" role="alert" hidden>Rastro dejó de recibir lo que hace Claude Code. Lo ya recibido se conserva y se reintenta solo; si sigue así, revisa el estado del equipo en Ajustes.</p>
+    <p id="sin-almacen" class="banner" role="alert" hidden>No se pudo usar el almacenamiento. La app funciona, pero los ajustes de esta sesión no se guardarán.</p>
+  </div>
+
+<div class="shell">
+  <main id="main" tabindex="-1">
+
+    <!-- ===== Chat: la vista inicial. La mascota con el campo de prompts y, debajo, la sesión en vivo ===== -->
+    <section id="v-chat" class="view" aria-labelledby="h-chat">
+      <h1 id="h-chat" class="sr" tabindex="-1">Chat</h1>
+      <p class="intro">Escribe a Claude y sigue al momento lo que hace la sesión elegida.</p>
+      <!-- Guía de primer uso: se puede omitir y volver a abrir desde Ajustes (js/app.js). -->
+      <section id="guia" class="card guia" aria-labelledby="guia-t" hidden></section>
+      <p id="cargando" class="label" hidden>Cargando</p>
+      <div id="vacio" class="card" hidden>
+        <div class="esc">
+          <p>Todavía no hay sesiones. Pulsa <b>Crear sesión</b> para empezar, o abre Claude Code en tu equipo: Rastro lee los registros que guarda en esta carpeta y la sesión aparecerá aquí sola.</p>
+          <p id="vacio-ruta" class="mono"></p>
+          <div class="row">
+            <button id="vacio-copiar" type="button" class="btn">Copiar ruta</button>
+            <button id="vacio-nueva" type="button" class="btn">Crear sesión</button>
+          </div>
+        </div>
+        <div class="card-pie"><h2 class="label">Sin sesiones</h2></div>
+      </div>
+
+      <div id="chat-cuerpo" class="chat-1a">
+        <div class="chat-col">
+          <!-- Conversación (diseño 1a): tus mensajes y, debajo de cada uno, lo que hizo Claude (js/conversation.js). -->
+          <section id="conv" class="conv" aria-label="Conversación de la sesión elegida"></section>
+          <!-- Turno en vivo: la mascota es el avatar de Claude; su burbuja dice qué hace y debajo llega la respuesta. -->
+          <div class="conv-vivo">
+            <div id="masc-figura" class="masc-figura"></div>
+            <div class="conv-vivo-cuerpo">
+              <div id="masc-burbuja" class="burbuja"></div>
+              <div id="masc-resp" class="masc-resp" hidden></div>
+              <!-- Permiso pendiente de la sesión elegida: Aprobar o Rechazar. Se pinta solo cuando cambia. -->
+              <section id="masc-permiso" class="masc-permiso" aria-labelledby="masc-permiso-t" hidden></section>
+            </div>
+          </div>
+          <div class="compositor">
+            <!-- Vista previa antes de enviar (B6), sugerencia del optimizador, decisión y cola. -->
+            <section id="masc-previa" class="previa" aria-labelledby="masc-previa-t" hidden></section>
+            <section id="masc-sugerencia" class="masc-sugerencia" aria-labelledby="masc-sug-t" hidden></section>
+            <div id="masc-decision" class="masc-decision" hidden></div>
+            <section id="masc-cola" class="masc-cola" aria-labelledby="masc-cola-t" hidden></section>
+            <form id="masc-form" class="masc-form comp-caja">
+              <label id="masc-destino" class="sr" for="masc-prompt">Mensaje</label>
+              <textarea id="masc-prompt" class="comp-texto" rows="2" placeholder="Escribe a Claude…" autocomplete="off" spellcheck="false" maxlength="20000" aria-describedby="masc-ayuda"></textarea>
+              <!-- Debajo del texto, como en claude.ai: a la izquierda el modo y los envíos forzados; a la derecha el
+                   selector de modelo y Enviar, en la esquina inferior derecha de la caja. -->
+              <div class="comp-fila">
+                <!-- Modo de uso (Selector Modo del diseño): qué puede hacer Claude sin preguntar. Se pinta en js/chat.js. -->
+                <fieldset id="masc-modo" class="modo selector-modo"></fieldset>
+                <span class="hueco"></span>
+                <!-- Esfuerzo (esfuerzo.json): el anillo dice el nivel ("Medio ◯"); el menú ofrece Bajo, Medio, Alto y Personalizado. -->
+                <span class="pan-mas-caja esf-caja"><button id="masc-esfuerzo" type="button" class="comp-pildora esf-boton" aria-haspopup="menu" aria-expanded="false" data-v="">Esfuerzo</button></span>
+                <button id="masc-modelo" type="button" class="comp-pildora mod-boton" aria-haspopup="dialog"><span class="sr">Cambiar modelo: </span>Automático · reparto de Rastro</button>
+                <button id="masc-enviar" type="submit" class="comp-enviar">Enviar</button>
+              </div>
+            </form>
+            <div class="comp-chips">
+              <button id="masc-encolar" type="button" class="chip-b" aria-label="Añadir a la cola" title="Añadir este mensaje a la cola: sale cuando termine lo que está en marcha">Cola<span id="masc-cola-n"></span></button>
+              <button id="masc-biblio" type="button" class="chip-b" aria-haspopup="dialog" aria-label="Abrir la biblioteca de prompts">Biblioteca</button>
+              <button id="masc-nueva" type="button" class="chip-b" aria-label="Empezar nueva sesión con esto">Nueva sesión con esto</button>
+              <select id="masc-caveman" class="chip-b chip-select" aria-label="Modo caveman: respuestas breves" title="Caveman: respuestas breves y telegráficas. No cambia tu mensaje ni el código.">
+                <option value="">Caveman: no</option><option value="caveman">caveman</option><option value="ultracave">ultracave</option><option value="megacave">megacave</option>
+              </select>
+              <!-- Remote Control de la sesión elegida: activo, o abrirla con Remote Control en la Terminal. -->
+              <button id="masc-rc" type="button" class="chip-b" aria-pressed="false" hidden>Remote Control</button>
+              <span class="hueco"></span>
+              <!-- Contexto ocupado por la sesión elegida (último turno del agente principal). -->
+              <span id="masc-ctx" class="comp-ctx" hidden></span>
+            </div>
+            <div class="comp-meta">
+              <!-- A dónde irá lo que escribas, en vivo (cambia al apuntar a Encolar o a los envíos forzados). -->
+              <p id="masc-envio" class="destino-envio comp-destino"></p>
+              <span id="masc-ayuda" class="comp-ayuda mono">Enter envía · Mayús+Enter línea · ↑ ↓ anteriores</span>
+            </div>
+          </div>
+          <!-- Lo que ya mostraba Chat y el diseño no pone a la vista: sigue aquí, plegado. -->
+          <details id="chat-mas" class="chat-mas">
+            <summary>Más detalles de la sesión: contexto, entorno, GitHub, conectores, modelos, línea de tiempo, actividad, agentes y herramientas</summary>
+            <div class="chat-mas-cuerpo">
+              <!-- Las tarjetas de detalles (js/session-details.js y js/github-card.js), que estaban en el panel derecho
+                   hasta el chat en tres columnas: Contexto, Entorno, GitHub, Conectores y Tareas en segundo plano. -->
+              <div class="det-grupo">
+                <section id="det-contexto" class="card det" aria-labelledby="t-det-contexto"></section>
+                <section id="det-entorno" class="card det" aria-labelledby="t-det-ent"></section>
+                <section id="det-github" class="card det" aria-labelledby="t-det-gh"></section>
+                <section id="det-conectores" class="card det" aria-labelledby="t-det-con"></section>
+                <section id="det-tareas" class="card det" aria-labelledby="t-det-tar"></section>
+              </div>
+              <div id="masc-uso" class="masc-uso" hidden></div>
+        <section class="card k-mo" aria-labelledby="t-mo">
+          <div id="modelos-uso" class="esc"></div>
+          <div class="card-pie"><h2 id="t-mo" class="label">Modelos en uso <span data-ayuda="modelos"></span></h2><span id="modelos-cuenta" class="note"></span></div>
+        </section>
+        <section class="card k-cr" aria-labelledby="t-cr">
+          <div id="carrete" class="esc centro"></div>
+          <div class="card-pie"><h2 id="t-cr" class="label">Últimas acciones <span data-ayuda="herramienta"></span></h2><button type="button" class="mas" data-ir="tiempo" aria-label="Ir a la línea de tiempo"></button></div>
+        </section>
+        <section class="card k-ti" aria-labelledby="t-ti">
+          <div class="esc">
+            <div class="row between">
+              <div id="tl-filtro"></div>
+              <div class="row">
+                <button id="ir-final" type="button" class="btn btn-small" hidden>Ir al final</button>
+                <button id="pausar" type="button" class="btn btn-small" aria-pressed="false">Pausar</button>
+              </div>
+            </div>
+            <div id="tiempo" class="tiempo"></div>
+          </div>
+          <div class="card-pie"><h2 id="t-ti" class="label">Línea de tiempo</h2><span id="tl-nota" class="label"></span></div>
+        </section>
+        <section class="card k-ac" aria-labelledby="t-ac">
+          <div id="actividad" class="esc claro"></div>
+          <div class="card-pie"><h2 id="t-ac" class="label">Actividad</h2><button type="button" class="mas" data-ir="estadisticas" aria-label="Abrir Estadísticas, en Consumo"></button></div>
+        </section>
+        <section class="card k-ag" aria-labelledby="t-ag">
+          <div class="esc"><ul id="arbol" class="arbol" role="tree" aria-labelledby="t-ag"></ul></div>
+          <div class="card-pie"><h2 id="t-ag" class="label">Agentes</h2><button type="button" class="mas" data-ir="sesiones" aria-label="Abrir Sesiones"></button></div>
+        </section>
+        <section class="card k-ca" aria-labelledby="t-ca">
+          <div class="esc"><ul id="cambios-mini" class="lista"></ul></div>
+          <div class="card-pie"><h2 id="t-ca" class="label">Cambios recientes</h2><button type="button" class="mas" data-ir="cambios" aria-label="Abrir Cambios"></button></div>
+        </section>
+        <section class="card k-he" aria-labelledby="t-he">
+          <div class="esc"><ul id="herr-mini" class="lista"></ul></div>
+          <div class="card-pie"><h2 id="t-he" class="label">Herramientas</h2><button type="button" class="mas" data-ir="estadisticas" aria-label="Abrir las herramientas en Estadísticas, en Consumo"></button></div>
+        </section>
+            </div>
+          </details>
+        </div>
+        <!-- Panel derecho de Chat (300 px; js/chat-columns.js): solo Tareas (el Plan y los agentes en curso) y
+             Cambios (archivos tocados y "Ver diff"). Desde 1280 px es una columna; por debajo, un panel superpuesto
+             que abre el botón "Contexto" de la cabecera. -->
+        <aside id="chat-lado" class="chat-lado" aria-labelledby="chat-lado-t">
+          <div class="lado-cab">
+            <h2 id="chat-lado-t" class="label" tabindex="-1">Contexto</h2>
+            <button id="lado-cerrar" type="button" class="btn btn-small lado-cerrar" aria-label="Cerrar el panel Contexto">Cerrar</button>
+          </div>
+          <section id="lado-tareas" class="card det" aria-labelledby="t-lado-tareas"></section>
+          <section id="lado-cambios" class="card det" aria-labelledby="t-lado-cambios"></section>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ===== Sesiones ===== -->
+    <section id="v-sesiones" class="view" aria-labelledby="h-sesiones" hidden>
+      <h1 id="h-sesiones" class="sr" tabindex="-1">Agentes</h1>
+      <p class="intro ag-intro">Quién trabaja ahora: el modelo líder al centro y sus agentes alrededor. Toca uno para ver su actividad, aprobar permisos o pararlo.</p>
+      <div class="ag-barra">
+        <span id="ag-contexto" class="ag-contexto mono"></span>
+        <span class="hueco"></span>
+        <div id="ag-alcance"></div>
+        <div id="ses-modo"></div>
+      </div>
+      <!-- Mapa hub and spoke (js/orchestrator-map.js): modelo líder al centro, ramas por tipo de agente y panel de actividad. -->
+      <div id="ag" class="ag-mapa"></div>
+      <div id="ses-dos" class="dos">
+        <section class="card" aria-labelledby="t-ses">
+          <div class="esc">
+            <div class="row between"><div id="ses-filtro"></div></div>
+            <ul id="ses-lista" class="sesiones"></ul>
+          </div>
+          <div class="card-pie"><h2 id="t-ses" class="label">Sesiones</h2></div>
+        </section>
+        <div class="col">
+          <div id="ses-detalle" class="col"></div>
+          <!-- Reproducción de la sesión: se pinta aparte, para que los datos nuevos no le quiten el foco. -->
+          <div id="ses-repro" class="col"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Cambios ===== -->
+    <section id="v-cambios" class="view" aria-labelledby="h-cambios" hidden>
+      <h1 id="h-cambios" class="sr" tabindex="-1">Cambios</h1>
+      <p class="intro">Qué archivos tocaron las sesiones y qué cambió en cada uno, línea a línea.</p>
+      <!-- Parches de los asistentes baratos: esperan la aprobación de la persona. -->
+      <div id="cam-parches" class="col" hidden></div>
+      <div class="dos">
+        <section class="card" aria-labelledby="t-cam-l">
+          <div class="esc">
+            <div id="cam-grupo"></div>
+            <div id="cam-lista"></div>
+          </div>
+          <div class="card-pie"><h2 id="t-cam-l" class="label">Archivos tocados</h2><button type="button" class="mas" data-ir="estadisticas" aria-label="Abrir la tabla de archivos en Estadísticas, en Consumo"></button></div>
+        </section>
+        <section class="card" aria-labelledby="t-cam-d">
+          <div class="esc">
+            <div class="row between">
+              <div id="cam-modo" class="solo-ancho"></div>
+              <button id="cam-copiar" type="button" class="btn btn-small">Copiar diferencias</button>
+            </div>
+            <div id="cam-diff" class="col"></div>
+          </div>
+          <div class="card-pie"><h2 id="t-cam-d" class="label">Diferencias</h2><span id="cam-nota" class="label"></span></div>
+        </section>
+      </div>
+    </section>
+
+    <!-- ===== Archivos: el árbol de la carpeta de trabajo de la sesión elegida (js/explorer.js) ===== -->
+    <section id="v-archivos" class="view" aria-labelledby="h-archivos" hidden>
+      <h1 id="h-archivos" class="sr" tabindex="-1">Archivos</h1>
+      <p class="intro">La carpeta en la que trabaja la sesión elegida: abre, crea, renombra o envía archivos a la papelera.</p>
+      <div class="dos arch-dos">
+        <section class="card" aria-labelledby="t-arch">
+          <div id="arch" class="esc"></div>
+          <div class="card-pie"><h2 id="t-arch" class="label">Archivos</h2></div>
+        </section>
+        <section id="arch-tarjeta" class="card" aria-labelledby="t-arch-sel" hidden>
+          <div id="arch-acciones" class="esc"></div>
+          <div class="card-pie"><h2 id="t-arch-sel" class="label">Elegido</h2></div>
+        </section>
+      </div>
+      <!-- Editor del archivo elegido (js/file-editor.js): Guardar y Cancelar, o guardado automático; conflictos con el disco. -->
+      <section id="arch-editor" class="card arch-editor" aria-labelledby="t-arch-ed" hidden></section>
+    </section>
+
+    <!-- ===== Consola: terminales reales en la carpeta de la sesión elegida (js/console.js) ===== -->
+    <section id="v-consola" class="view" aria-labelledby="h-consola" hidden>
+      <h1 id="h-consola" class="sr" tabindex="-1">Terminal</h1>
+      <p class="intro">Una terminal abierta en la carpeta de la sesión elegida, para escribir órdenes tú mismo.</p>
+      <section class="card" aria-labelledby="t-consola">
+        <div class="esc consola-esc">
+          <div class="row between">
+            <div id="con-pestanas" class="con-pestanas" role="tablist" aria-label="Terminales"></div>
+            <button id="con-nueva" type="button" class="btn btn-small">Abrir terminal</button>
+          </div>
+          <div id="con-cuerpo" class="con-cuerpo"></div>
+          <p id="con-nota" class="note"></p>
+        </div>
+        <div class="card-pie"><h2 id="t-consola" class="label">Terminal</h2><span class="label"><kbd>Ctrl</kbd>+<kbd>Mayús</kbd>+<kbd>C</kbd> copia · <kbd>Ctrl</kbd>+<kbd>Mayús</kbd>+<kbd>V</kbd> pega</span></div>
+      </section>
+    </section>
+
+    <!-- ===== Uso: dos vistas internas, Consumo y Estadísticas ===== -->
+    <section id="v-uso" class="view" aria-labelledby="h-uso" hidden>
+      <h1 id="h-uso" class="sr" tabindex="-1">Consumo</h1>
+      <p class="intro">Cuánto llevas usado de tu plan de Claude y en qué se fue.</p>
+      <div id="uso-sub"></div>
+      <div id="uso-consumo" class="view">
+        <div id="uso-bloques" class="tres"></div>
+        <div class="dos">
+          <section class="card" aria-labelledby="t-uso-m">
+            <div class="esc plano"><div id="uso-modelos" class="table-wrap" role="group" aria-label="Tabla de uso por modelo" tabindex="0"></div></div>
+            <div class="card-pie"><h2 id="t-uso-m" class="label">Por modelo</h2></div>
+          </section>
+          <section class="card" aria-labelledby="t-uso-s">
+            <div class="esc plano"><div id="uso-sesiones" class="table-wrap" role="group" aria-label="Tabla de uso por sesión" tabindex="0"></div></div>
+            <div class="card-pie"><h2 id="t-uso-s" class="label">Por sesión</h2></div>
+          </section>
+        </div>
+        <div class="row between">
+          <p id="uso-nota" class="help crece"></p>
+          <!-- Solo en la app: una llamada mínima al CLI devuelve el porcentaje oficial de uso. -->
+          <button id="medir-uso" type="button" class="btn btn-small" hidden>Medir ahora</button>
+        </div>
+      </div>
+      <!-- Orquestación (Fase 3): a dónde fue cada prompt, cómo les fue a los modelos baratos y la cuota. -->
+      <div id="uso-orquestacion" class="view" hidden></div>
+      <!-- Fase 4: GPU y VRAM con sus topes, y el modo continuidad (pendientes para Claude). -->
+      <div id="uso-recursos" class="view" hidden></div>
+      <div id="uso-continuidad" class="view" hidden></div>
+      <div id="uso-estadisticas" class="view" hidden>
+        <div id="est-cifras" class="cifras"></div>
+
+        <section class="card" aria-labelledby="t-est-ac">
+          <div class="esc claro">
+            <div id="cal-modo"></div>
+            <div id="cal-caja" class="col"></div>
+            <details>
+              <summary class="label">Tabla equivalente</summary>
+              <div id="cal-tabla" class="table-wrap" role="group" aria-label="Tabla equivalente de la actividad" tabindex="0"></div>
+            </details>
+          </div>
+          <div class="card-pie"><h2 id="t-est-ac" class="label">Actividad</h2></div>
+        </section>
+
+        <section class="card" aria-labelledby="t-est-ri">
+          <div id="ritmo" class="esc"></div>
+          <div class="card-pie"><h2 id="t-est-ri" class="label">Ritmo</h2></div>
+        </section>
+
+        <div class="dos">
+          <section class="card" aria-labelledby="t-est-he">
+            <div class="esc plano"><div id="est-herr" class="table-wrap" role="group" aria-label="Tabla de herramientas" tabindex="0"></div></div>
+            <div class="card-pie"><h2 id="t-est-he" class="label">Herramientas</h2></div>
+          </section>
+          <section class="card" aria-labelledby="t-est-arch">
+            <div class="esc plano"><div id="est-arch" class="table-wrap" role="group" aria-label="Tabla de archivos" tabindex="0"></div></div>
+            <div class="card-pie"><h2 id="t-est-arch" class="label">Archivos</h2></div>
+          </section>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===== Nueva sesión: una sola pantalla (js/new-session.js): Elegir entorno, el encargo y Enviar ===== -->
+    <section id="v-programadas" class="view" aria-labelledby="h-programadas" hidden>
+      <h1 id="h-programadas" class="sr" tabindex="-1">Programadas</h1>
+      <p class="intro">Tareas que empiezan una sesión nueva de Claude a la hora que elijas, en una carpeta de este equipo.</p>
+      <div id="prog" class="col"></div>
+    </section>
+    <section id="v-nueva" class="view" aria-labelledby="h-nueva" hidden><h1 id="h-nueva" class="sr" tabindex="-1">Nueva sesión</h1></section>
+
+    <!-- ===== Ajustes: se abre con la tuerca de la cabecera (js/settings.js) =====
+         Como en Claude: los apartados a la izquierda y, a la derecha, el apartado elegido. Lo que todavía no tiene
+         una función real se ve desactivado con "Próximamente". -->
+    <section id="v-ajustes" class="view" aria-labelledby="h-ajustes" hidden>
+      <h1 id="h-ajustes" class="sr" tabindex="-1">Ajustes</h1>
+      <div class="aj">
+        <nav id="aj-nav" class="aj-nav" aria-label="Apartados de Ajustes"></nav>
+        <div id="ajustes" class="aj-cuerpo">
+          <h2 id="aj-titulo" class="aj-titulo" tabindex="-1"></h2>
+          <div id="aj-contenido" class="col"></div>
+          <!-- Tarjetas fijas que js/settings.js coloca en su apartado: Privacidad y General. -->
+          <div id="aj-fijas" hidden>
+        <section class="card" aria-labelledby="t-datos">
+          <div class="esc">
+            <p class="help">Rastro guarda su historial en <span class="mono" id="dir-datos">%APPDATA%\Rastro</span> durante 30 días, con un tope de 20 KB por entrada o salida. No toca los registros de Claude Code.</p>
+            <div class="row">
+              <button id="exportar" type="button" class="btn">Exportar respaldo</button>
+              <button id="importar" type="button" class="btn">Importar respaldo</button>
+              <input id="importar-archivo" type="file" accept="application/json,.json" aria-label="Archivo de respaldo" hidden>
+              <button id="reiniciar" type="button" class="btn">Borrar historial</button>
+            </div>
+            <p id="datos-msg" class="note" role="status"></p>
+            <!-- Al abrirse, el foco va a Cancelar; el grupo lleva la pregunta como nombre para que se oiga. -->
+            <div id="reiniciar-conf" class="sub confirm" role="group" aria-labelledby="reiniciar-que" hidden>
+              <p id="reiniciar-que">Se borrará el historial de sesiones y de actividad que guarda Rastro. Los registros de Claude Code y tus ajustes se conservan.</p>
+              <div class="row">
+                <button id="reiniciar-si" type="button" class="btn">Sí, borrar el historial</button>
+                <button id="reiniciar-no" type="button" class="btn btn-primary">Cancelar</button>
+              </div>
+            </div>
+            <div id="importar-conf" class="sub confirm" role="group" aria-labelledby="importar-que" hidden>
+              <p id="importar-que"></p>
+              <div class="row">
+                <button id="importar-si" type="button" class="btn">Sí, reemplazar</button>
+                <button id="importar-no" type="button" class="btn btn-primary">Cancelar</button>
+              </div>
+            </div>
+          </div>
+          <div class="card-pie"><h3 id="t-datos" class="label">Datos y respaldo</h3></div>
+        </section>
+        <section class="card" aria-labelledby="t-glos">
+          <div class="esc"><p class="help">Las palabras que salen en Rastro, explicadas en una frase.</p><dl id="glosario" class="glosario"></dl></div>
+          <div class="card-pie"><h3 id="t-glos" class="label">Glosario</h3></div>
+        </section>
+          </div>
+          <!-- IA económicas: lo pinta js/assistants.js (proveedores, Ollama, catálogo, optimizador). -->
+          <div id="aj-asistentes" class="col" hidden></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="foot">
+    <span><kbd>Ctrl</kbd>+<button id="tecla-buscar" type="button" class="key"></button> busca</span>
+    <span><button id="tecla-leer" type="button" class="key"></button> dice las métricas</span>
+    <span><kbd>Esc</kbd> cierra</span>
+    <!-- Solo con datos de muestra: escenarios y simulación para revisar los estados de la maqueta. -->
+    <div id="muestra" class="muestra" hidden>
+      <span class="label">Muestra</span>
+      <div id="sim-esc"></div>
+      <div id="sim-uso"></div>
+      <button id="sim-evento" type="button" class="btn btn-small">Simular evento</button>
+      <button id="sim-error" type="button" class="btn btn-small">Simular error</button>
+      <button id="sim-fin" type="button" class="btn btn-small">Simular fin de sesión</button>
+    </div>
+  </footer>
+</div>
+  </div><!-- .columna -->
+</div><!-- .app -->
+
+<!-- Barra de estado fija (js/status-bar.js): cada dato lleva a su pestaña. -->
+<nav id="barra-estado" class="barra-estado" aria-label="Barra de estado"></nav>
+
+<!-- Capas: asistente, paleta de búsqueda. -->
+<div id="capa"></div>
+
+<!-- Región de estado: aquí se escriben las frases que debe decir un lector de pantalla. Siempre
+     presente y fuera de cualquier bloque oculto. La actividad en vivo NO pasa por aquí evento a evento. -->
+<div id="status" class="sr" role="status" aria-atomic="false" aria-relevant="additions"></div>
+<!-- Toasts: lo mismo que se anuncia, a la vista unos segundos (js/ui.js). -->
+<div id="toasts" class="toasts"></div>
+
+<script defer src="shared/folder.js"></script>
+<script defer src="shared/ui-logic.js"></script>
+<script defer src="js/ui.js"></script>
+<script defer src="js/glyphs.js"></script>
+<script defer src="js/data.js"></script>
+<!-- Una de las dos rellena la capa de datos: el puente dentro de la app, la muestra en un navegador. -->
+<script defer src="js/bridge.js"></script>
+<script defer src="js/sample-data.js"></script>
+<script defer src="js/notifications.js"></script>
+<script defer src="js/sound.js"></script>
+<script defer src="js/views.js"></script>
+<script defer src="js/orchestrator-map.js"></script>
+<script defer src="js/models-in-use.js"></script>
+<script defer src="js/explorer.js"></script>
+<script defer src="js/overlays.js"></script>
+<script defer src="js/new-session.js"></script>
+<script defer src="js/scheduled.js"></script>
+<!-- Consola: xterm.js y sus complementos, tal cual los publica el paquete (sin copia propia). -->
+<script defer src="vendor/xterm/xterm.js"></script>
+<script defer src="vendor/xterm/addon-fit.js"></script>
+<script defer src="vendor/xterm/addon-web-links.js"></script>
+<script defer src="js/console.js"></script>
+<script defer src="js/respuesta.js"></script>
+<script defer src="js/chat.js"></script>
+<script defer src="js/conversation.js"></script>
+<script defer src="js/markdown.js"></script>
+<script defer src="js/library.js"></script>
+<script defer src="js/replay.js"></script>
+<script defer src="js/assistants.js"></script>
+<script defer src="js/models.js"></script>
+<script defer src="js/sidebar.js"></script>
+<script defer src="js/resources.js"></script>
+<script defer src="js/app.js"></script>
+<script defer src="js/panes.js"></script>
+<script defer src="js/github-card.js"></script>
+<script defer src="js/session-details.js"></script>
+<script defer src="js/browser-pane.js"></script>
+<script defer src="js/file-editor.js"></script>
+<script defer src="js/tasks-pane.js"></script>
+<script defer src="js/chat-columns.js"></script>
+<script defer src="js/side-chat.js"></script>
+<!-- js/diff-comments.js (comentarios en el diff) queda desconectado de la interfaz desde 2026-11-04: ver docs/PARIDAD-FINAL.md. -->
+<script defer src="js/status-bar.js"></script>
+<script defer src="js/shortcuts.js"></script>
+<script defer src="js/ollama-probe.js"></script>
+<script defer src="js/settings.js"></script>
+<script defer src="js/turn-popup.js"></script>
+</body>
+</html>
