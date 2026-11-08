@@ -1,53 +1,72 @@
-/* Panel de detalles de la sesión (a la derecha de Chat), con el orden de Claude Code Desktop: Contexto, Entorno,
-   GitHub (lo pinta js/github-card.js), Conectores y Tareas en segundo plano. Las tarjetas que eran solo de
-   RASTRO (Cambios, Agentes trabajando, Uso de tu plan y Plan) salieron del panel el 2026-11-04: Cambios queda
-   como panel (Ctrl+Mayús+D no tiene botón), el uso va en la barra inferior y el Plan en el ⋮.
-   No se calcula ni se inventa nada: lo que no se sabe dice "sin dato", y lo supuesto se rotula "estimado". */
+/* Panel Contexto de Chat (barra derecha) y detalles de la sesión. Desde el 2026-11-07 la barra va, de arriba abajo:
+   Tareas (js/chat-columns.js), Contexto (como /context de Claude Code), Entorno, Cambios (js/chat-columns.js) y
+   Tareas en segundo plano. GitHub (js/github-card.js) y Conectores se pintan en "Detalles de la sesión"
+   (js/session-view.js). No se calcula ni se inventa nada: lo que no se sabe dice "no disponible". */
 (function (RA) {
   'use strict';
 
-  const ui = RA.ui, el = ui.el, $ = ui.$, D = RA.datos;
-  const abiertas = new Set();            // tarjetas desplegadas (Contexto)
-  const VENTANA_SUPUESTA = 200000;       // si Claude Code aún no dijo la ventana de ese modelo
+  const ui = RA.ui, el = ui.el, $ = ui.$, D = RA.datos, L = RA.logica;
 
-  /* Contexto: anillo con el % de la ventana que ocupa la conversación (tokens que entraron en el último turno del
-     agente principal). La ventana la informa Claude Code al terminar un turno lanzado desde Rastro
-     (modelUsage.contextWindow) y se recuerda por modelo; hasta entonces se supone de 200 K y se rotula
-     "estimado". El reparto por categoría no está en el registro: dice "sin dato". */
+  /* Contexto, en dos fuentes reales:
+     1. En vivo, del transcript: el modelo del último mensaje y los tokens que entraron en el último turno del agente
+        principal (usage: input + caché leída + caché creada). La ventana la informa Claude Code al terminar un
+        turno lanzado desde Rastro (modelUsage.contextWindow) o la lectura de abajo; sin ninguna, "no disponible".
+     2. El desglose por categoría, de Claude Code (get_context_usage, el dato de /context), solo al pulsar
+        "Actualizar": abre la sesión sin mandarle ningún mensaje, así que no gasta tokens
+        (src/main/services/claude/context-usage.js). */
+  const lecturas = {};                    // por sesión: { pidiendo, r, error }
   function ventanaDe(s) {
-    const v = RA.chat && RA.chat.ventana ? RA.chat.ventana(s) : 0;
-    return v ? { n: v, estimada: false } : { n: VENTANA_SUPUESTA, estimada: true };
+    const v = RA.chat && RA.chat.ventana ? RA.chat.ventana(s) : 0, l = lecturas[s.id];
+    return v || (l && l.r && l.r.max) || 0;
   }
-  function anillo(pct) {
-    const r = 15, L = 2 * Math.PI * r, f = Math.max(0, Math.min(1, pct / 100));
-    return ui.svg('svg', { class: 'ctx-anillo' + (pct >= 90 ? ' alto' : ''), viewBox: '0 0 36 36', width: '36', height: '36', 'aria-hidden': 'true' }, [
-      ui.svg('circle', { cx: '18', cy: '18', r: String(r), class: 'ctx-fondo' }),
-      f ? ui.svg('circle', { cx: '18', cy: '18', r: String(r), class: 'ctx-arco', 'stroke-dasharray': (L * f).toFixed(2) + ' ' + L.toFixed(2), transform: 'rotate(-90 18 18)' }) : null
-    ]);
+  function leerContexto(s) {
+    if (!D.contextoSesion) return;
+    const l = lecturas[s.id] = lecturas[s.id] || {};
+    if (l.pidiendo) return;
+    l.pidiendo = true; l.error = '';
+    pintar();
+    Promise.resolve(D.contextoSesion(s.id)).then(r => {
+      l.pidiendo = false;
+      if (r && r.ok) l.r = r; else l.error = (r && r.error) || 'No disponible.';
+      pintar();
+      ui.decir(r && r.ok ? 'Contexto leído: ' + r.pct + ' % de la ventana.' : l.error, r && r.ok ? 'ok' : 'atencion');
+    }, () => { l.pidiendo = false; l.error = 'No disponible: la lectura falló.'; pintar(); });
   }
   function contexto(s) {
-    const n = s.ctx || 0, v = ventanaDe(s), pct = n ? Math.round(n * 100 / v.n) : null, abierta = abiertas.has('det-contexto');
-    const boton = el('button', { type: 'button', class: 'btn btn-small det-abrir', 'aria-expanded': String(abierta), 'aria-controls': 'det-contexto-esc',
-      onclick: () => { if (abierta) abiertas.delete('det-contexto'); else abiertas.add('det-contexto'); pintar(); $('#det-contexto .det-abrir').focus(); } }, abierta ? 'Ocultar el desglose' : 'Ver el desglose');
-    const texto = pct == null ? 'sin dato' : pct + ' %' + (v.estimada ? ' (estimado)' : '');
+    const l = lecturas[s.id] || {}, n = s.ctx || 0, v = ventanaDe(s), pct = n && v ? Math.round(n * 1000 / v) / 10 : null;
+    const modelo = s.modelo || (l.r && l.r.modelo) || '';
+    const texto = pct == null ? 'no disponible' : String(pct).replace('.', ',') + ' %';
+    const filas = L.filasContexto(l.r), max = l.r && l.r.max;
+    const fila = f => el('li', { class: 'ctx-cat' + (f.id === 'free_space' ? ' libre' : '') }, [
+      el('span', { class: 'ctx-cat-n' }, f.nombre),
+      el('span', { class: 'mono ctx-cat-v' }, ui.tokens(f.tokens) + (f.pct == null ? '' : ' · ' + String(f.pct).replace('.', ',') + ' %')),
+      max ? el('span', { class: 'ctx-cat-barra', 'aria-hidden': 'true' }, el('i', { css: { width: Math.min(100, Math.max(f.tokens ? 1 : 0, f.tokens * 100 / max)).toFixed(1) + '%' } })) : null
+    ]);
+    const boton = el('button', { type: 'button', class: 'btn btn-small', id: 'ctx-actualizar', 'aria-busy': l.pidiendo ? 'true' : null, 'aria-disabled': !D.contextoSesion || s.entorno === 'ssh' ? 'true' : null,
+      title: 'Lee el desglose de Claude Code (/context) sin enviar ningún mensaje: no gasta tokens',
+      onclick: () => {
+        if (!D.contextoSesion) return ui.decir('El desglose se lee en la app de escritorio.', 'atencion');
+        if (s.entorno === 'ssh') return ui.decir('No disponible en sesiones SSH todavía.', 'atencion');
+        leerContexto(s);
+      } }, l.pidiendo ? 'Leyendo…' : 'Actualizar');
+    const estado = l.error ? el('p', { class: 'note ctx-estado', role: 'status' }, l.error)
+      : l.r ? el('p', { class: 'note mono ctx-estado' }, 'Desglose de Claude Code · ' + L.relativo(l.r.t, D.ahora ? D.ahora() : Date.now()) + ' · ' + ui.tokens(l.r.total) + ' de ' + ui.tokens(l.r.max))
+      : el('p', { class: 'note ctx-estado' }, 'Pulsa Actualizar para ver el reparto por categoría, como /context. No gasta tokens.');
     ui.pintar($('#det-contexto'), [
       el('div', { class: 'esc det-esc' }, [
-        el('div', { class: 'ctx-fila', role: pct == null ? 'img' : 'meter', 'aria-label': 'Contexto usado: ' + texto, 'aria-valuemin': pct == null ? null : '0', 'aria-valuemax': pct == null ? null : '100', 'aria-valuenow': pct == null ? null : String(Math.min(100, pct)), 'aria-valuetext': pct == null ? null : texto }, [
-          anillo(pct || 0),
-          el('div', { class: 'ctx-txt' }, [
-            el('span', { class: pct == null ? 'mono ctx-sin' : 'ctx-pct' + (pct >= 90 ? ' alto' : '') }, pct == null ? 'sin dato' : pct + ' %'),
-            el('span', { class: 'mono ctx-tok' }, n ? ui.tokens(n) + ' de ' + ui.tokens(v.n) + ' tokens' + (v.estimada ? ' · estimado' : '') : 'aún no hay un turno con uso')
-          ])
+        el('p', { class: 'det-fila' }, [el('span', { class: 'label' }, 'Modelo'), el('span', { class: 'mono det-donde', title: modelo }, modelo ? ui.modelo(modelo) : 'no disponible')]),
+        el('div', { class: 'ctx-uso' }, [
+          el('div', { class: 'ctx-cifras' }, [
+            el('span', { class: pct == null ? 'mono ctx-sin' : 'ctx-pct' + (pct >= 90 ? ' alto' : '') }, texto),
+            el('span', { class: 'mono ctx-tok' }, (n ? ui.tokens(n) : 'no disponible') + ' / ' + (v ? ui.tokens(v) : 'no disponible'))
+          ]),
+          ui.medidor(pct, 'Ventana de contexto usada', pct == null ? 'no disponible' : texto + ', ' + ui.tokens(n) + ' de ' + ui.tokens(v) + ' tokens', true)
         ]),
-        boton,
-        el('div', { class: 'det-esc', id: 'det-contexto-esc', hidden: !abierta }, [
-          el('p', { class: 'det-fila' }, [el('span', { class: 'label' }, 'Último turno'), el('span', { class: 'mono' }, n ? ui.tokens(n) + ' tokens' : 'sin dato')]),
-          el('p', { class: 'det-fila' }, [el('span', { class: 'label' }, 'Ventana'), el('span', { class: 'mono' }, ui.tokens(v.n) + (v.estimada ? ' (supuesta)' : ' (Claude Code)'))]),
-          el('p', { class: 'det-fila' }, [el('span', { class: 'label' }, 'Por categoría'), el('span', { class: 'mono' }, 'sin dato')]),
-          el('p', { class: 'note' }, v.estimada ? 'La ventana del modelo se supone de 200 K hasta que Claude Code la informe al terminar un mensaje enviado desde Rastro. El reparto por categoría no está en el registro de la sesión.' : 'La ventana la informó Claude Code. El reparto por categoría no está en el registro de la sesión.')
-        ])
+        filas.dentro.length ? el('ul', { class: 'ctx-cats', 'aria-label': 'Contexto por categoría' }, filas.dentro.map(fila)) : null,
+        filas.fuera.length ? el('details', { class: 'ctx-fuera' }, [el('summary', { class: 'note' }, 'Fuera de la ventana (diferidas)'), el('ul', { class: 'ctx-cats' }, filas.fuera.map(fila))]) : null,
+        el('div', { class: 'row between ctx-pie' }, [estado, boton])
       ]),
-      el('div', { class: 'card-pie' }, [el('h2', { class: 'label', id: 't-det-contexto' }, 'Contexto'), el('span', { class: 'mono det-pie-dato' }, pct == null ? '' : pct + ' %')])
+      el('div', { class: 'card-pie' }, [el('h2', { class: 'label', id: 't-det-contexto' }, 'Contexto'), pct == null ? null : el('span', { class: 'mono det-pie-dato' }, texto)])
     ]);
   }
 
@@ -97,18 +116,26 @@
     ]);
   }
 
-  /* Tareas en segundo plano: subagentes y órdenes que siguen tras devolver su resultado (las de js/tasks-pane.js).
-     La tarjeta enseña las que siguen en curso y lleva al panel con su salida. */
+  /* Tareas en segundo plano: solo órdenes y monitores que siguen tras devolver su resultado (L.tareasFondo). Los
+     subagentes están en "Agentes trabajando", nunca aquí. Código B1, B2…, tipo, estado y tiempo. */
+  const NOMBRE_EST = { curso: 'en marcha', listo: 'terminada', error: 'falló', detenido: 'detenida', nodatos: 'sin aviso de fin' };
+  const PUNTO_EST = { curso: 'curso', listo: 'ok', error: 'error', detenido: 'neutro', nodatos: 'neutro' };
   function pintarTareas(s) {
-    const todas = RA.tareasPanel ? RA.tareasPanel.tareas(s) : [], curso = todas.filter(t => t.est === 'curso');
+    const todas = L.tareasFondo(s, D.ahora ? D.ahora() : Date.now()), curso = todas.filter(t => t.est === 'curso');
     ui.pintar($('#det-tareas'), [
       el('div', { class: 'esc det-esc' }, [
-        curso.length ? el('ul', { class: 'det-lista', 'aria-label': 'Tareas en segundo plano en curso' }, curso.slice(0, 5).map(t => el('li', { class: 'det-tar-fila' }, [
-          el('i', { class: 'est-pt curso', 'aria-hidden': 'true' }), el('span', { class: 'crece' }, [el('span', { class: 'sr' }, t.tipo + ': '), el('span', { class: 'mono det-ruta', title: t.nombre }, t.nombre)])
-        ]))) : el('p', { class: 'note det-vacio' }, todas.length ? 'Nada en curso. ' + todas.length + (todas.length === 1 ? ' tarea terminada.' : ' tareas terminadas.') : 'Nada en segundo plano.'),
+        todas.length ? el('ul', { class: 'det-lista fondo-lista', 'aria-label': 'Tareas en segundo plano' }, todas.slice(-8).reverse().map(t => el('li', { class: 'fondo-fila' }, [
+          ui.insignia(t.cod),
+          el('span', { class: 'crece fondo-txt' }, [
+            el('span', { class: 'fondo-l1' }, [el('span', { class: 'label' }, t.tipo), el('span', { class: 'mono note' }, t.ms == null ? '' : ui.dur(t.ms))]),
+            el('span', { class: 'mono fondo-n', title: t.nombre }, t.nombre),
+            el('span', { class: 'fondo-est' }, [el('i', { class: 'est-pt ' + PUNTO_EST[t.est], 'aria-hidden': 'true' }), el('span', { class: 'mono note' }, NOMBRE_EST[t.est] || t.est)])
+          ])
+        ]))) : el('p', { class: 'note det-vacio' }, 'Nada en segundo plano.'),
+        todas.length > 8 ? el('p', { class: 'note' }, '+' + (todas.length - 8) + ' anteriores en la salida de las tareas.') : null,
         todas.length ? el('button', { type: 'button', class: 'btn btn-small', id: 'det-tar-ver', onclick: () => RA.paneles && RA.paneles.abrir('tareas') }, 'Ver la salida de las tareas') : null
       ]),
-      el('div', { class: 'card-pie' }, [el('h2', { class: 'label', id: 't-det-tar' }, 'Segundo plano'), curso.length ? el('span', { class: 'mono det-pie-dato' }, String(curso.length)) : null])
+      el('div', { class: 'card-pie' }, [el('h2', { class: 'label', id: 't-det-tar' }, 'Tareas en segundo plano'), curso.length ? el('span', { class: 'mono det-pie-dato', title: 'En marcha' }, String(curso.length)) : null])
     ]);
   }
 
@@ -127,7 +154,7 @@
     const rc = !!s.rc, R = RA.chat && RA.chat.remote, mia = rc && RA.consola && RA.consola.abiertas && RA.consola.abiertas().some(t => t.viva && t.lanzada.indexOf('--resume ' + s.id) >= 0);
     const motivo = rc ? (mia ? '' : 'Se activó fuera de Rastro: desactívalo en esa terminal con /remote-control.') : (R ? R.motivo(s) : 'No disponible.');
     const sw = el('button', { type: 'button', id: 'det-rc', class: 'btn btn-small sw', role: 'switch', 'aria-checked': String(rc), 'aria-disabled': motivo ? 'true' : null, title: motivo || (rc ? 'Apagar: cierra la terminal donde corre con Remote Control' : 'Encender: abre la sesión en la Terminal con Remote Control'), 'aria-describedby': 'det-rc-nota' },
-      [el('span', { class: 'sr' }, 'Remote Control: '), rc ? 'Sí' : 'No']);
+      [el('span', { class: 'sr' }, 'Remote Control: '), el('i', { class: 'est-pt ' + (rc ? 'ok' : 'neutro'), 'aria-hidden': 'true' }), rc ? 'Activo' : 'Inactivo']);
     sw.addEventListener('click', () => {
       if (motivo) return ui.decir(motivo, 'atencion');
       if (!rc) return R.abrir();
@@ -148,10 +175,10 @@
     }
     ui.pintar($('#det-entorno'), [
       el('div', { class: 'esc det-esc' }, [
-        el('p', { class: 'det-fila' }, [el('span', { class: 'label' }, 'Dónde'), el('span', { class: 'mono det-donde', title: s.carpeta || '' }, 'Este equipo · ' + donde)]),
-        el('p', { class: 'det-fila' }, [el('span', { class: 'label' }, 'Proceso'), el('span', { class: 'mono' }, s.vivo ? 'abierto' : 'cerrado')]),
+        el('p', { class: 'det-fila det-fila-donde' }, [el('span', { class: 'label' }, 'Dónde'), el('span', { class: 'mono det-donde', title: s.carpeta || '' }, 'Este equipo · ' + donde)]),
+        el('p', { class: 'det-fila' }, [el('span', { class: 'label' }, 'Proceso'), el('span', { class: 'ent-est' }, [el('i', { class: 'est-pt ' + (s.vivo ? 'ok' : 'neutro'), 'aria-hidden': 'true' }), el('span', { class: 'mono' }, s.vivo ? 'en marcha' : 'cerrado')])]),
         el('div', { class: 'det-fila' }, [el('span', { class: 'label', id: 'det-rc-l' }, 'Remote Control'), sw]),
-        el('p', { class: 'note', id: 'det-rc-nota' }, motivo ? motivo : rc ? 'Puedes seguir y dirigir esta sesión desde claude.ai/code o la app del móvil.' : 'Enciéndelo para seguir esta sesión desde claude.ai/code o la app del móvil.')
+        motivo ? el('p', { class: 'note', id: 'det-rc-nota' }, motivo) : el('p', { class: 'sr', id: 'det-rc-nota' }, rc ? 'Activo: se puede seguir desde claude.ai/code o la app del móvil.' : 'Inactivo. Enciéndelo para seguir esta sesión desde claude.ai/code o la app del móvil.')
       ]),
       el('div', { class: 'card-pie' }, el('h2', { class: 'label', id: 't-det-ent' }, 'Entorno'))
     ]);
@@ -162,7 +189,10 @@
     const s = RA.vistas && RA.vistas.actual();
     ['#det-contexto', '#det-entorno', '#det-github', '#det-conectores', '#det-tareas'].forEach(id => { $(id).hidden = !s; });
     if (!s) return;
+    // El repintado no le quita el foco al botón Actualizar.
+    const conFoco = document.activeElement && document.activeElement.id === 'ctx-actualizar';
     contexto(s);
+    if (conFoco && $('#ctx-actualizar')) $('#ctx-actualizar').focus();
     // Sin repintar el interruptor mientras está armado (segunda pulsación pendiente).
     if (!$('#det-rc.armed')) entorno(s);
     if (RA.github) RA.github.pintar(s);
@@ -170,7 +200,7 @@
     pintarTareas(s);
   }
 
-  RA.detalles = { pintar: pintar, VENTANA_SUPUESTA: VENTANA_SUPUESTA };
+  RA.detalles = { pintar: pintar, leerContexto: leerContexto, lecturas: lecturas };
   function montar() { D.alCambiar(pintar); document.addEventListener('rastro:vista', pintar); pintar(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', montar); else montar();
 })(window.RA = window.RA || {});

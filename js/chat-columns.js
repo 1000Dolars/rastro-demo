@@ -146,7 +146,7 @@
     document.body.classList.toggle('panel-plegado', ancho && !e.lado);
     if (b) {
       b.setAttribute('aria-expanded', String(ancho ? e.lado : !!flot));
-      b.title = (ancho ? (e.lado ? 'Ocultar' : 'Mostrar') : 'Abrir') + ' el panel Contexto: tareas y cambios de la sesión';
+      b.title = (ancho ? (e.lado ? 'Ocultar' : 'Mostrar') : 'Abrir') + ' el panel Contexto: tareas, contexto, entorno, cambios y segundo plano de la sesión';
     }
     pintarLista();
   }

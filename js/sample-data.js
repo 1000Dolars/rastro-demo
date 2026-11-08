@@ -83,7 +83,8 @@
       ev(T, P, 2190, 'mcp__context7__query-docs', 'electron: titleBarOverlay', 3400, { ent: '{ "libraryId": "/electron/electron", "query": "titleBarOverlay" }', sal: 'titleBarOverlay: { color, symbolColor, height }' }),
       ev(T, P, 2221, 'Agent', 'test-runner: pruebas de la maqueta', null, { hijo: A[7], ent: '{ "subagent_type": "test-runner", "description": "pruebas de la maqueta", "run_in_background": true }' }),
       ev(T, P, 2240, 'Bash', 'npx serve . --listen 4173', null, { fondo: true, ent: 'npx serve . --listen 4173', sal: 'Serving!  http://localhost:4173' }),
-      ev(T, P, 2262, 'Edit', 'index.html', null, { archivo: 'index.html', ent: '{ "file_path": "index.html", "old_string": "…", "new_string": "…" }' })
+      ev(T, P, 2262, 'Edit', 'index.html', null, { archivo: 'index.html', ent: '{ "file_path": "index.html", "old_string": "…", "new_string": "…" }' }),
+      ev(T, P, 2120, 'Bash', 'npm run build -- --watch=false', 900, { fondo: true, fondoFin: { est: 'listo', t: T + 2160 * 1000 }, ent: 'npm run build -- --watch=false', sal: 'Command running in background with ID: b7k2' })
     );
     return { id: 's1', nombre: 'rastro-fase-1', carpeta: 'C:\\Proyectos\\rastro', origen: 'externa', est: 'curso', fase: null, modelo: 'claude-opus-5-5', ctx: 84000, t0: T, t1: null, agentes: agentes, eventos: e,
       prompts: [{ t: T - 1000, texto: 'Rehaz la maqueta del panel con el bento de 12 columnas y pasa las pruebas de contraste.' }],
@@ -248,6 +249,15 @@
   };
   D.elegirCarpeta = () => hecho({ ruta: 'C:\\Proyectos\\notas' });     // lo que "elige" el diálogo en la maqueta
   // Conectores (MCP) de muestra: uno conectado y uno que pide autenticarse (el estado lo da Claude Code al enviar).
+  /* Lectura de contexto de ejemplo (la forma de services/claude/context-usage.js), para las capturas sin tokens.
+     Solo la usan las pruebas: los datos de muestra no la ponen en D.contextoSesion. */
+  RA.muestra = Object.assign(RA.muestra || {}, { contextoUso: () => ({ ok: true, t: AHORA - 60000, fuente: 'get_context_usage', modelo: 'claude-opus-5-5', total: 84000, max: 1000000, pct: 8,
+    categorias: [{ id: 'system_prompt', nombre: 'System prompt', tokens: 3300, tipo: 'used' }, { id: 'system_tools', nombre: 'System tools', tokens: 2100, tipo: 'used' },
+      { id: 'mcp_tools', nombre: 'MCP tools', tokens: 1200, tipo: 'used' }, { id: 'custom_agents', nombre: 'Custom agents', tokens: 1800, tipo: 'used' },
+      { id: 'memory_files', nombre: 'Memory files', tokens: 900, tipo: 'used' }, { id: 'skills', nombre: 'Skills', tokens: 9800, tipo: 'used' },
+      { id: 'messages', nombre: 'Messages', tokens: 64900, tipo: 'used' }, { id: 'autocompact_buffer', nombre: 'Autocompact buffer', tokens: 33000, tipo: 'buffer' },
+      { id: 'free_space', nombre: 'Free space', tokens: 883000, tipo: 'free' }, { id: 'system_tools_deferred', nombre: 'System tools (deferred)', tokens: 22400, tipo: 'deferred' }],
+    memoria: [], mcp: { herramientas: 6, servidores: 1 }, skills: { total: 40, tokens: 9800 }, autocompactar: 967000 }) });
   D.conectores = () => hecho({ lista: [{ nombre: 'github', tipo: 'http', origen: 'usuario', estado: 'needs-auth' }, { nombre: 'playwright', tipo: 'stdio', origen: 'proyecto', estado: 'connected' }] });
 
   // Árbol de archivos de muestra, el mismo para todas las sesiones: un objeto es una carpeta y un 0, un archivo.

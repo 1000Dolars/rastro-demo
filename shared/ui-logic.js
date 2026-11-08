@@ -333,7 +333,35 @@
     return s < 60 ? 'ahora' : s < 3600 ? 'hace ' + n(60) + ' min' : s < 86400 ? 'hace ' + n(3600) + ' h' : s < 2592000 ? 'hace ' + n(86400) + ' d' : 'hace ' + n(2592000) + (n(2592000) === 1 ? ' mes' : ' meses');
   }
 
-  const api = { pasosVisibles: pasosVisibles, medidaMapa: medidaMapa, mesesMapa: mesesMapa, PALABRA_SESION: PALABRA_SESION, relativo: relativo, ESF_CLAUDE: ESF_CLAUDE, indiceEsfuerzo: indiceEsfuerzo, teclaEsfuerzo: teclaEsfuerzo, paradaEn: paradaEn, PAN_COLS: PAN_COLS, PAN_FILAS: PAN_FILAS, PAN_ALTO_MIN: PAN_ALTO_MIN, panInicial: panInicial, estadoPaneles: estadoPaneles, posicionPanel: posicionPanel, abrirPanel: abrirPanel,
+  /* ---- Barra de la sesión (encargo barra-sesion, 2026-11-07) ----
+     Tareas en segundo plano: solo las llamadas que siguen tras devolver su resultado (Bash con run_in_background,
+     Monitor…), marcadas `fondo` por el lector de transcripts. Los subagentes (Agent/Task) NO van aquí aunque se
+     lancen en segundo plano: ya están en "Agentes trabajando" con su código A1, A2…; por eso estas llevan B1, B2…
+     Estado: el fin que avisó Claude Code (<task-notification>); sin aviso, "curso" mientras la sesión tiene proceso
+     y "nodatos" si se cerró sin avisar (no se inventa un fin). Tiempo: hasta el aviso, o hasta ahora si sigue. */
+  const DE_SUBAGENTE = ['Agent', 'Task'];
+  const TIPO_FONDO = { Bash: 'Orden', PowerShell: 'Orden', Monitor: 'Monitor' };
+  function tareasFondo(s, ahora) {
+    const vivo = !!(s && (s.vivo || s.est === 'curso')), t1 = ahora == null ? Date.now() : ahora;
+    return ((s && s.eventos) || []).filter(e => e && e.fondo && DE_SUBAGENTE.indexOf(e.h) < 0).sort((a, b) => (a.t || 0) - (b.t || 0)).map((e, i) => {
+      const fin = e.fondoFin || null, est = fin ? fin.est : vivo ? 'curso' : 'nodatos';
+      const ms = !e.t ? null : fin && fin.t ? Math.max(0, fin.t - e.t) : est === 'curso' ? Math.max(0, t1 - e.t) : null;
+      return { cod: 'B' + (i + 1), id: e.id, tipo: TIPO_FONDO[e.h] || e.h, nombre: e.res || e.h, est: est, ms: ms, e: e };
+    });
+  }
+  /* Filas del contexto como /context: nombres en español, en el orden de Claude Code. Lo que no ocupa la ventana
+     (herramientas diferidas) va aparte. Los identificadores son los del CLI 2.1.319. */
+  const NOMBRE_CTX = { system_prompt: 'Prompt del sistema', system_tools: 'Herramientas', mcp_tools: 'Herramientas MCP', mcp_instructions: 'Instrucciones MCP',
+    custom_agents: 'Agentes personalizados', memory_files: 'Archivos de memoria', skills: 'Skills', messages: 'Mensajes',
+    autocompact_buffer: 'Reserva de autocompactado', compact_buffer: 'Reserva de compactado', free_space: 'Espacio libre',
+    system_tools_deferred: 'Herramientas diferidas', mcp_tools_deferred: 'Herramientas MCP diferidas' };
+  function filasContexto(r) {
+    if (!r || !Array.isArray(r.categorias)) return { dentro: [], fuera: [] };
+    const fila = c => ({ id: c.id, nombre: NOMBRE_CTX[c.id] || c.nombre || c.id, tokens: c.tokens || 0, tipo: c.tipo, pct: r.max ? Math.round((c.tokens || 0) * 1000 / r.max) / 10 : null });
+    return { dentro: r.categorias.filter(c => c.tipo !== 'deferred').map(fila), fuera: r.categorias.filter(c => c.tipo === 'deferred').map(fila) };
+  }
+
+  const api = { tareasFondo: tareasFondo, filasContexto: filasContexto, NOMBRE_CTX: NOMBRE_CTX, pasosVisibles: pasosVisibles, medidaMapa: medidaMapa, mesesMapa: mesesMapa, PALABRA_SESION: PALABRA_SESION, relativo: relativo, ESF_CLAUDE: ESF_CLAUDE, indiceEsfuerzo: indiceEsfuerzo, teclaEsfuerzo: teclaEsfuerzo, paradaEn: paradaEn, PAN_COLS: PAN_COLS, PAN_FILAS: PAN_FILAS, PAN_ALTO_MIN: PAN_ALTO_MIN, panInicial: panInicial, estadoPaneles: estadoPaneles, posicionPanel: posicionPanel, abrirPanel: abrirPanel,
     cerrarPanel: cerrarPanel, moverPanel: moverPanel, tecladoPanel: tecladoPanel, dondePanel: dondePanel,
     MODOS: MODOS, PUNTOS: PUNTOS, puntosModo: puntosModo, ESFUERZOS: ESFUERZOS, anilloEsfuerzo: anilloEsfuerzo,
     NOMBRE_REPO: NOMBRE_REPO, nombreRepo: nombreRepo, estadoCI: estadoCI, NOMBRE_CI: NOMBRE_CI, limitador: limitador, popupTurno: popupTurno, explicarError: explicarError,

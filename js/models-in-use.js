@@ -85,10 +85,8 @@
 
   D.alCambiar(pintar);
   document.addEventListener('rastro:vista', pintar);
-  // C7: la tabla vive en "Más detalles"; el repaso periódico solo corre si está abierto y la ventana se ve.
-  // Los cambios de datos (D.alCambiar) la repintan siempre, y al abrir el desplegable se pone al día.
-  const mas = $('#chat-mas');
-  if (mas) mas.addEventListener('toggle', () => { if (mas.open) pintar(); });
-  setInterval(() => { if (!document.hidden && (!mas || mas.open)) pintar(); }, 2000);
+  // C7: la tabla vive en "Detalles de la sesión"; el repaso periódico solo corre si está abierta y la ventana se ve.
+  // Los cambios de datos (D.alCambiar) la repintan siempre, y al abrir los detalles se pone al día.
+  setInterval(() => { if (!document.hidden && (!RA.detallesVista || RA.detallesVista.abierta())) pintar(); }, 2000);
   RA.modelosUso = { pintar: pintar, filas: filas, estadoIA: estadoIA, punto: punto };
 })(window.RA = window.RA || {});

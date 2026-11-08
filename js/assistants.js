@@ -34,18 +34,42 @@
     if (!estado) return ui.pintar(caja, el('p', { class: 'label' }, 'Cargando'));
     if (estado.error) return ui.pintar(caja, el('p', {}, el('span', { class: 'mal' }, estado.error)));
     const E = estado, C = E.config, foco = document.activeElement && document.activeElement.id;
-    ui.pintar(caja, [orquestador(E, C), local(E, C)].concat(RA.fase4 ? RA.fase4.tarjetas() : [], [nube(E, C), openrouter(E, C), optimizador(C), proyectos(E), auxiliares(E, C)]));
+    ui.pintar(caja, [orquestador(E, C), local(E, C)].concat(RA.fase4 ? RA.fase4.tarjetas() : [], [nube(E, C), ninerouter(E, C), openrouter(E, C), optimizador(C), proyectos(E), auxiliares(E, C)]));
     if (foco && $('#' + foco)) $('#' + foco).focus();
   }
 
+  /* Avisos del orquestador según el estado real (los calcula el proceso principal: avisosOrquestador). Los de nivel
+     "alerta" van con "!" y role="status"; los informativos, como nota. solo: ids que enseñar (o todos). */
+  function avisos(E, solo) {
+    const l = (E.avisos || []).filter(a => !solo || solo.indexOf(a.id) >= 0);
+    if (!l.length) return null;
+    return el('div', { class: 'col orq-avisos', role: 'status' }, l.map(a => el('p', { class: a.nivel === 'alerta' ? 'aviso-largo' : 'note', 'data-aviso': a.id }, (a.nivel === 'alerta' ? '! ' : '') + a.texto)));
+  }
+
+  /* Tareas elegibles (hallazgo 1). Antes los botones no tenían estilo de pulsado: encendido y apagado se veían igual y
+     cada clic quitaba una tarea sin que se notara. Ahora llevan ✓ y borde, una cuenta, y quitar la última pide
+     confirmación (dos pasos); el proceso principal tampoco guarda una lista vacía sin esa confirmación. */
+  function elegibles(E, C) {
+    const n = C.elegibles.length;
+    const cambiar = (l, extra) => { C.elegibles = l; return guardar(Object.assign({ elegibles: l }, extra), l.length ? 'Tareas elegibles: ' + l.length + ' de ' + E.elegiblesTodos.length + '.' : 'Lista vacía: todo irá a Claude.'); };
+    const tipos = el('div', { class: 'badges elegibles', role: 'group', 'aria-label': 'Tareas elegibles para modelos baratos' }, E.elegiblesTodos.map(t => {
+      const si = C.elegibles.indexOf(t.id) >= 0;
+      const b = el('button', { type: 'button', class: 'btn btn-small', 'data-elegible': t.id, 'aria-pressed': String(si) }, [si ? el('span', { 'aria-hidden': 'true' }, '✓ ') : null, t.nombre]);
+      if (si && n === 1) return ui.armar(b, '¿Dejar la lista vacía? Todo irá a Claude.', () => cambiar([], { vaciarElegibles: true }));
+      b.addEventListener('click', () => cambiar(si ? C.elegibles.filter(x => x !== t.id) : C.elegibles.concat(t.id)));
+      return b;
+    }));
+    return [el('div', {}, 'Tareas elegibles para modelos baratos'), el('p', { class: 'note', id: 'as-elegibles-cuenta' }, n + ' de ' + E.elegiblesTodos.length + ' elegidas. Pulsa una para quitarla o ponerla.'), tipos];
+  }
+
   function orquestador(E, C) {
-    const tipos = el('div', { class: 'badges', role: 'group', 'aria-label': 'Tareas elegibles para modelos baratos' }, E.elegiblesTodos.map(t => el('button', { type: 'button', class: 'btn btn-small', 'aria-pressed': String(C.elegibles.indexOf(t.id) >= 0), onclick: () => { const l = C.elegibles.indexOf(t.id) >= 0 ? C.elegibles.filter(x => x !== t.id) : C.elegibles.concat(t.id); guardar({ elegibles: l }); } }, t.nombre)));
     const umbral = el('input', { id: 'as-umbral', class: 'input', type: 'number', min: '0', max: '1', step: '0.05', value: String(C.umbral), 'aria-label': 'Confianza mínima', onchange: e => guardar({ umbral: +e.target.value }) });
     return ui.tarjeta('Orquestador', el('ul', { class: 'lista' }, [
-      fila('Orquestador', 'Apagado, todo va a Claude Code como siempre. Encendido, cada prompt del panel pasa por las reglas y el clasificador local: las tareas pequeñas van a un modelo barato, en una copia aislada y con tu aprobación.', sw(C.orquestador, 'Orquestador', v => guardar({ orquestador: v }, v ? 'Orquestador encendido.' : 'Orquestador apagado: todo va a Claude.'))),
-      fila('Confianza mínima del clasificador', 'Por debajo, gana Claude.', umbral),
-      el('li', { class: 'col' }, [el('div', {}, 'Tareas elegibles para modelos baratos'), tipos, el('p', { class: 'note' }, 'Los límites gratuitos no admiten contextos grandes: Rastro envía como mucho unos 48 000 caracteres por tarea.')]),
-      fila('Destino barato en la nube', 'Si no hay modelo local, o en modo juego: solo con proyectos permitidos en nube.', select('as-nube', [['', 'Ninguno']].concat(E.nube.filter(p => C.proveedores[p] && C.proveedores[p].activo).map(p => [p, E.nombres[p]])), C.nube.prov, v => guardar({ nubeDestino: { prov: v } })))
+      fila('Orquestador', 'Apagado, todo va a Claude Code como siempre. Encendido, cada prompt que envías desde Chat pasa por las reglas y el clasificador local: las tareas pequeñas van a un modelo barato, en una copia aislada y con tu aprobación. Nueva sesión y Programadas no pasan por el orquestador.', sw(C.orquestador, 'Orquestador', v => guardar({ orquestador: v }, v ? 'Orquestador encendido.' : 'Orquestador apagado: todo va a Claude.'))),
+      avisos(E, ['elegibles', 'sinModelo', 'sinOllama']) ? el('li', { class: 'col' }, avisos(E, ['elegibles', 'sinModelo', 'sinOllama'])) : null,
+      fila('Confianza mínima del clasificador', 'Por debajo, gana Claude. Si el prompt no nombra ningún archivo, hace falta al menos 0,9.', umbral),
+      el('li', { class: 'col' }, elegibles(E, C).concat(el('p', { class: 'note' }, 'Los límites gratuitos no admiten contextos grandes: Rastro envía como mucho unos 48 000 caracteres por tarea.'))),
+      fila('Destino barato en la nube', 'Si no hay modelo local, o en modo juego: solo con proyectos permitidos en nube.', select('as-nube', [['', 'Ninguno']].concat((E.destinos || E.nube).filter(p => C.proveedores[p] && C.proveedores[p].activo).map(p => [p, E.nombres[p]])), C.nube.prov, v => guardar({ nubeDestino: { prov: v } })))
     ]), { id: 't-as-orq' });
   }
   function select(id, opciones, valor, cambio) {
@@ -111,6 +135,36 @@
         ]);
       }))
     ], { id: 't-as-nube' });
+  }
+
+  /* 9Router (Parte C): enrutador local que reenvía a la nube. Se detecta, nunca se instala ni se arranca desde aquí.
+     Cada modelo de su listado lleva el veredicto del candado "solo gratis" (hoy, todos bloqueados, con el motivo). */
+  function ninerouter(E, C) {
+    const N = E.ninerouter;
+    if (!N) return null;
+    const p = '9router', activo = !!(C.proveedores[p] && C.proveedores[p].activo);
+    const est = N.enMarcha ? 'En marcha en ' + N.base.replace(/^https?:\/\//, '') : N.instalado ? 'Instalado, sin abrir' : 'No instalado';
+    const clave = el('input', { id: 'as-clave-9router', class: 'input', type: 'password', autocomplete: 'off', spellcheck: 'false', placeholder: N.clave ? 'Clave puesta (no se enseña)' : 'Opcional: solo si activaste REQUIRE_API_KEY', 'aria-label': 'Clave de API de 9Router' });
+    const libres = N.modelos.filter(m => m.gratis), porPrefijo = {};
+    N.modelos.filter(m => !m.gratis).forEach(m => { const k = m.prefijo || 'sin prefijo'; (porPrefijo[k] = porPrefijo[k] || { n: 0, motivo: m.motivo }).n++; });
+    const bloqueados = Object.keys(porPrefijo).sort();
+    return ui.tarjeta('9Router', [
+      el('div', { class: 'badges' }, [ui.insignia(est, N.enMarcha ? '' : 'alerta'), ui.insignia(activo ? 'Activo' : 'Apagado'), N.clave ? ui.insignia('Clave puesta') : null, ui.insignia('Reenvía a la nube: no es local')]),
+      el('p', { class: 'note' }, 'Enrutador en este equipo que reenvía cada petición a otros proveedores, también a suscripciones como Claude Code (cc/) o Codex (cx/). Rastro solo deja ejecutar los modelos verificados como gratuitos; los demás, bloqueados. Rastro no instala ni arranca 9Router.'),
+      N.error ? el('p', {}, el('span', { class: 'mal' }, N.error)) : null,
+      el('div', { class: 'ruta-campo' }, [clave,
+        el('button', { type: 'button', class: 'btn btn-small', onclick: () => { const k = clave.value; clave.value = ''; pide('asistentesClave', p, k).then(r => { msg(r, 'Clave guardada.'); recargar(); }); } }, 'Guardar clave'),
+        N.clave ? ui.armar(el('button', { type: 'button', class: 'btn btn-small' }, 'Quitar clave'), '¿Quitar?', () => pide('asistentesQuitarClave', p).then(r => { msg(r, 'Clave quitada.'); recargar(); })) : null]),
+      el('div', { class: 'row' }, [
+        ui.interruptor(activo, v => guardar({ activar: { prov: p, activo: v } }, v ? '9Router activado.' : '9Router apagado.'), 'Activar 9Router'),
+        el('input', { id: 'as-modelo-9router', class: 'input modelo', type: 'text', value: C.modelos[p] || '', 'aria-label': 'Modelo de 9Router (prefijo/modelo)', placeholder: 'prefijo/modelo', spellcheck: 'false', onchange: e => guardar({ modelo: { prov: p, modelo: e.target.value } }) }),
+        el('button', { type: 'button', class: 'btn btn-small', id: 'as-probar-9router', onclick: () => pide('asistentesProbar', p).then(r => { msg(r, r.texto); recargar(); }) }, 'Probar conexión')
+      ]),
+      el('p', { class: 'mono', id: 'as-9r-cuenta' }, N.t ? N.modelos.length + ' modelos en su listado · ' + libres.length + ' permitidos por el candado · consultado ' + ui.hora(N.t) : 'Listado sin consultar: pulsa "Probar conexión".'),
+      bloqueados.length ? el('details', { class: 'sub' }, [el('summary', {}, 'Bloqueados por prefijo (' + bloqueados.length + ')'),
+        el('ul', { class: 'lista', id: 'as-9r-bloqueados' }, bloqueados.map(k => el('li', { class: 'col' }, [el('span', { class: 'mono' }, k + '/ · ' + porPrefijo[k].n + (porPrefijo[k].n === 1 ? ' modelo' : ' modelos')), el('span', { class: 'note' }, porPrefijo[k].motivo)])))]) : null,
+      el('p', { class: 'mono', id: 'as-9r-cuota' }, 'Cuota: ' + N.cuota.motivo + (N.cuota.hasta > D.ahora() ? ' · En espera por un 429 hasta las ' + ui.hora(N.cuota.hasta) + '.' : ''))
+    ], { id: 't-as-9router' });
   }
 
   function openrouter(E, C) {
@@ -179,9 +233,14 @@
     if (!P) return ui.pintar(caja, ui.tarjeta('Orquestación', el('p', { class: 'note' }, 'Solo en la app de escritorio.')));
     const [R, E] = await Promise.all([pide('orquestacion'), pide('asistentesEstado', false)]);
     if (R.error) return ui.pintar(caja, el('p', {}, el('span', { class: 'mal' }, R.error)));
+    if (E && !E.error) estado = E;
+    // Sin decisiones, el texto dice por qué según el estado real (hallazgo 7), no "enciende el orquestador" a ciegas.
+    const A = (E && E.avisos) || [], primero = A.find(a => a.nivel === 'alerta') || A.find(a => a.id === 'apagado');
+    const vacio = primero ? 'Aún no hay decisiones. ' + primero.texto : 'Aún no hay decisiones: se registran al enviar un prompt desde Chat.';
     const pct = (a, b) => b ? Math.round(100 * a / b) + ' %' : '—';
     const q = E && E.cuotas ? E.cuotas : {};
     ui.pintar(caja, [
+      E && !E.error ? avisos(E) : null,
       el('div', { class: 'cifras' }, [['Decisiones', R.decisiones], ['A Claude', R.porDestino.claude || 0], ['A modelos baratos', (R.porDestino.local || 0) + (R.porDestino.nube || 0)], ['Uso de Claude ahorrado', R.ahorradas]].map(c => el('div', { class: 'card' }, [el('div', { class: 'esc centro' }, el('b', { class: 'media' }, ui.cifra(c[1]))), el('div', { class: 'card-pie' }, el('span', { class: 'label' }, c[0]))]))),
       el('p', { class: 'note' }, '"Uso de Claude ahorrado" es una estimación: tareas resueltas por un modelo barato, aprobadas y sin escalar. Escalamientos: ' + R.escaladas + ' · Reintentos: ' + R.reintentos + '.'),
       ui.tarjeta('Modelos baratos', el('div', { class: 'table-wrap' }, ui.tabla(['Modelo', ['Tareas', 'num'], ['Éxito', 'num'], ['Escaladas', 'num'], ['Latencia', 'num'], 'Valoración', 'Lo que suele resolver'], R.modelos.map(m => [el('span', { class: 'mono' }, m.modelo), m.tareas, pct(m.ok, m.tareas), m.escaladas, ui.dur(m.ms / Math.max(1, m.tareas)), '▲ ' + m.arriba + ' · ▼ ' + m.abajo, Object.keys(m.porTipo).filter(t => m.porTipo[t].ok).join(', ') || '—'])))),
@@ -193,7 +252,7 @@
         el('span', { class: 'n' }, ui.hora(d.t)), ui.insignia({ claude: 'Claude', local: 'Local', nube: 'Nube', pendiente: 'Pendiente', espera: 'En espera' }[d.destino] || d.destino), el('span', { class: 'crece' }, [el('span', { class: 'mono' }, d.prompt.slice(0, 80)), el('br'), el('span', { class: 'note' }, d.motivo)]),
         d.destino !== 'claude' ? el('button', { type: 'button', class: 'btn btn-small', 'aria-label': 'Valorar bien', onclick: () => pide('orquestacionValorar', d.id, 'arriba').then(() => ui.decir('Valorado.')) }, '▲') : null,
         d.destino !== 'claude' ? el('button', { type: 'button', class: 'btn btn-small', 'aria-label': 'Valorar mal', onclick: () => pide('orquestacionValorar', d.id, 'abajo').then(() => ui.decir('Valorado.')) }, '▼') : null
-      ])) : el('li', { class: 'note' }, 'Aún no hay decisiones: enciende el orquestador en Ajustes > Asistentes.')))
+      ])) : el('li', { class: 'note', id: 'orq-vacio' }, vacio)))
     ]);
   }
 
@@ -252,6 +311,20 @@
     if (d.tareaBarata) { tareas[d.tareaBarata.sesion] = d.tareaBarata; if (RA.chat) RA.chat.tarea(d.tareaBarata); if (d.tareaBarata.estado === 'parche') cargarParches(); }
     if (typeof d.pensando === 'boolean') { D.pensando = d.pensando; }
     if (d.autoeval && sub === 'asistentes') recargar();
+    // Ollama cambió (sondeo o decidir): Modelos en uso, Ajustes y Reparto lo enseñan sin esperar a reabrirlos (hallazgos 2 y 8).
+    if (d.ollama) {
+      if (estado && estado.ollama) estado.ollama.enMarcha = d.ollama.enMarcha;
+      recargar().then(() => { D.emitir(); repartoEnVivo(); });
+    }
+    // Una decisión nueva o una tarea barata que avanza: Reparto se repinta si está a la vista (hallazgo 7).
+    if (d.orquestacion || d.tareaBarata) repartoEnVivo();
+  }
+  let tRepartir = null;
+  function repartoEnVivo() {
+    const caja = $('#uso-orquestacion');
+    if (!caja || caja.offsetParent === null) return;
+    clearTimeout(tRepartir);
+    tRepartir = setTimeout(pintarOrquestacion, 250);
   }
 
   document.addEventListener('rastro:vista', e => {

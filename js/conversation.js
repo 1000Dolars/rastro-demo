@@ -131,7 +131,7 @@
     const vis = turnos.filter(t => t.p || t.evs.length || t.resp.length).slice(-(det ? MAX_TURNOS * 2 : MAX_TURNOS)), ocultos = turnos.filter(t => t.p || t.evs.length || t.resp.length).length - vis.length;
     const abajo = caja.scrollHeight - caja.scrollTop - caja.clientHeight < 40;
     ui.pintar(caja, [
-      ocultos > 0 ? el('p', { class: 'note conv-antes' }, ocultos + (ocultos === 1 ? ' turno anterior' : ' turnos anteriores') + ' en la línea de tiempo (Más detalles, abajo).') : null,
+      ocultos > 0 ? el('p', { class: 'note conv-antes' }, ocultos + (ocultos === 1 ? ' turno anterior' : ' turnos anteriores') + ' en la línea de tiempo (Detalles de la sesión, al pie del panel Contexto).') : null,
       vis.length ? null : el('p', { class: 'note conv-vacio' }, 'Esta sesión aún no tiene mensajes ni acciones.')
     ].concat(vis.map(t => {
       const tope = det ? 200 : MAX_FILAS, sobra = t.evs.length - tope, filas = t.evs.slice(-tope);

@@ -172,13 +172,10 @@
     $('#chat-cuerpo').hidden = vacio;
     const s = actual();
     if (!s) return;
-    mascota(s); if (RA.chat) RA.chat.pintar(s); if (RA.conversacion) RA.conversacion.pintar(s); carrete(s); tiempo(s); mapa($('#actividad'), 'dias'); arbol(s);
+    mascota(s); if (RA.chat) RA.chat.pintar(s); if (RA.conversacion) RA.conversacion.pintar(s); carrete(s); tiempo(s); arbol(s);
     if (RA.chat3) { RA.chat3.pintarPanel(); RA.chat3.pintarLista(); }
-    const rec = C.cambios().slice(0, 5);
-    ui.pintar($('#cambios-mini'), rec.length ? rec.map(x => el('li', {}, [
-      el('button', { type: 'button', class: 'enlace crece', onclick: () => { sel().archivo = x.s.id + '|' + x.archivo; RA.app.ir('cambios'); } }, ui.ruta(x.archivo)),
-      chipCambio(x), agMini(x.a), el('span', { class: 'n' }, ui.hora(x.e.t))
-    ])) : el('li', { class: 'note' }, 'Todavía no hay cambios. Cuando una sesión edite archivos los verás aquí.'));
+    // Actividad (el mapa de calor de todas las sesiones) y Cambios recientes salieron de Chat el 2026-11-07: están en
+    // Consumo › Estadísticas y en Cambios, y los detalles de la sesión enlazan allí.
     ui.pintar($('#herr-mini'), C.herramientas([s]).slice(0, 7).map(h => el('li', {}, [
       G.svg(G.deHerramienta(h.h), null), el('span', { class: 'crece mono' }, herr(h.h)),
       el('span', { class: 'n' }, ui.num(h.n) + (h.err ? ' · ' + plural(h.err, 'error', 'errores') : ''))
@@ -789,8 +786,7 @@
   function mapas() {
     if (sel().vista === 'sesiones' && sel().sesVista === 'mapa') sesiones();
     if (!D.estado.sesiones.length) return;
-    if (sel().vista === 'chat') mapa($('#actividad'), 'dias');
-    else if (sel().vista === 'uso' && sel().usoVista === 'estadisticas') mapa($('#cal-caja'), sel().calor);
+    if (sel().vista === 'uso' && sel().usoVista === 'estadisticas') mapa($('#cal-caja'), sel().calor);
   }
 
   RA.vistas = { diagnostico: diagnostico, diffActual: () => diffVisto(), tarjeta: tarjeta, estadoMascota: estadoMascota, chat: chat, sesiones: sesiones, cambios: cambios, uso: uso, ajustes: () => {}, nueva: () => {}, consola: () => {}, franja: franja, tiempo: tiempo, arbol: arbol, mapas: mapas, actual: actual, mascota: mascota };

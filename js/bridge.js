@@ -37,6 +37,7 @@
   D.abrirEnlace = u => P.abrirEnlace(u).catch(() => false);
   D.pr = pide('pr');
   D.conectores = pide('conectores');
+  D.contextoSesion = pide('contextoSesion');
   D.gh = { estado: pide('ghEstado'), repos: pide('ghRepos'), clonar: pide('ghClonar'), crear: pide('ghCrear') };
   D.worktree = pide('worktree');
   D.ollama = { conexion: pide('ollamaProbarConexion'), modelo: pide('ollamaProbarModelo') };
@@ -122,7 +123,7 @@
     if (d.navegador) oyentesNav.forEach(fn => fn(d.navegador));
     if (d.modos) E.modos = d.modos;
     if ((d.recursos || d.continuidad) && RA.fase4) RA.fase4.recibir(d);
-    if ((d.descarga || d.parches || d.tareaBarata || typeof d.pensando === 'boolean' || d.autoeval) && RA.asistentes) RA.asistentes.recibir(d);
+    if ((d.descarga || d.parches || d.tareaBarata || typeof d.pensando === 'boolean' || d.autoeval || d.orquestacion || d.ollama) && RA.asistentes) RA.asistentes.recibir(d);
     if (d.programadas && RA.programadas) RA.programadas.recibir(d.programadas);
     (d.avisos || []).forEach(a => D.avisar(a));
     pintar();

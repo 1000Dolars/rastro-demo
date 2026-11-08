@@ -179,7 +179,7 @@
     pintarVistas() { if (!P.usar() || RA.app.sel.vista !== 'chat') return; abiertos().forEach(v => { if (VISTAS[v] && RA.vistas[v]) RA.vistas[v](); else if (registrados[v] && registrados[v].pintar) registrados[v].pintar(); }); }
   };
 
-  P.tieneFondo = s => !!(s && ((s.eventos || []).some(e => e.fondo) || (s.agentes || []).some(a => a.padre)));
+  P.tieneFondo = s => !!(s && RA.logica.tareasFondo(s).length);
   P.tienePlan = s => !!(s && s.plan && s.plan.total);
   const sesionId = () => { const s = RA.vistas && RA.vistas.actual(); return s ? s.id : null; };
   const dispararResize = () => requestAnimationFrame(() => dispatchEvent(new Event('resize')));

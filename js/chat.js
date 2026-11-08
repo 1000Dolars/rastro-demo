@@ -93,6 +93,8 @@
   // ---- Orquestador: a dónde fue el prompt, y por qué ----
   let sugerencia = null, decisiones = {};
   const DESTINO = { claude: 'Claude Code', local: 'Modelo local', nube: 'Modelo gratuito en la nube', pendiente: 'Pendientes para Claude', espera: 'En espera (modo juego)' };
+  // Proveedor real de una decisión de nube (OpenRouter, 9Router…), con el nombre que da el proceso principal.
+  const provNombre = p => { const A = RA.asistentes && RA.asistentes.estado && RA.asistentes.estado(); return (A && A.nombres && A.nombres[p]) || p; };
   function pintarDecision(s, d, tarea) {
     if (d) decisiones[s.id] = { d: d, tarea: tarea || null };
     const x = decisiones[s.id], caja = $('#masc-decision');
@@ -100,7 +102,7 @@
     if (!x) return ui.pintar(caja, null);
     const T = x.tarea || {}, est = { trabajando: 'Trabajando en una copia aislada', parche: 'Parche listo: espera tu aprobación en Cambios', escalada: 'Falló dos veces: pasó a Claude Code con el contexto de lo intentado', pendiente: 'No pudo: espera a Claude en Pendientes, con el contexto de lo intentado' }[T.estado];
     ui.pintar(caja, [
-      el('div', { class: 'badges' }, [ui.insignia('Destino: ' + DESTINO[x.d.destino] + (x.d.modelo ? ' · ' + x.d.modelo : ''), T.estado === 'escalada' ? 'alerta' : ''), T.estado === 'escalada' ? ui.insignia('Escalado a Claude', 'alerta') : null, x.d.refinado ? ui.insignia('Prompt refinado') : null]),
+      el('div', { class: 'badges' }, [ui.insignia('Destino: ' + DESTINO[x.d.destino] + (x.d.destino === 'nube' && x.d.prov ? ' · ' + provNombre(x.d.prov) : '') + (x.d.modelo ? ' · ' + x.d.modelo : ''), T.estado === 'escalada' ? 'alerta' : ''), T.estado === 'escalada' ? ui.insignia('Escalado a Claude', 'alerta') : null, x.d.refinado ? ui.insignia('Prompt refinado') : null]),
       el('span', { class: 'note' }, x.d.motivo + (est ? ' · ' + est + '.' : '')),
       T.estado === 'parche' ? el('button', { type: 'button', class: 'btn btn-small', onclick: () => RA.app.ir('cambios') }, 'Ver en Cambios') : null
     ]);
@@ -344,7 +346,7 @@
     const m = D.modoDe(s);
     // Bloque G: si lo recibe Claude, se cita su fila de Modelos en uso ("► Programa · Opus 5.5").
     const fila = /^Claude/.test(a) && RA.modelosUso ? RA.modelosUso.filas(s).find(f => f.id === 'claude') : null;
-    const cita = fila ? [' · ', el('span', { class: 'dest-fila', title: 'La fila de Modelos en uso (Más detalles) que recibe el mensaje' }, '► ' + fila.rol + (fila.modelo ? ' · ' + fila.modelo : ''))] : [];
+    const cita = fila ? [' · ', el('span', { class: 'dest-fila', title: 'La fila de Modelos en uso (Detalles de la sesión) que recibe el mensaje' }, '► ' + fila.rol + (fila.modelo ? ' · ' + fila.modelo : ''))] : [];
     ui.pintar(caja, ['Se enviará a: ', el('b', {}, s.nombre), ' · ', a].concat(cita, m ? [' · modo ', el('b', {}, m.nombre)] : []));
   }
   /* Vista previa (B6): destino, modelo, tokens aproximados, coste y aviso de mensaje largo para una IA

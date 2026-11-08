@@ -195,15 +195,11 @@
   ui.pintar($('#ajustes-btn'), ui.iconoAjustes());
   // La tuerca: abre Ajustes con su animación de desenroscado (js/settings.js).
   $('#ajustes-btn').addEventListener('click', () => { if (RA.barra && RA.barra.cerrar) RA.barra.cerrar(); if (RA.ajustes) RA.ajustes.abrir(); else app.ir('ajustes'); });
-  // "Más detalles" de Chat: se recuerda si quedó abierto.
-  const mas = $('#chat-mas');
-  try { mas.open = localStorage.getItem('rastro:chatmas') === '1'; } catch (e) { /* sin almacenamiento */ }
   // Bloque B: "Más" del compositor (esfuerzo de la IA local, cola, biblioteca, caveman y Remote Control).
   const compMas = $('#masc-mas'), compPanel = $('#masc-mas-panel');
   const ponerCompMas = v => { compPanel.hidden = !v; compMas.setAttribute('aria-expanded', String(v)); try { localStorage.setItem('rastro:compmas', v ? '1' : '0'); } catch (e) { /* sin almacenamiento */ } };
   try { ponerCompMas(localStorage.getItem('rastro:compmas') === '1'); } catch (e) { ponerCompMas(false); }
   compMas.addEventListener('click', () => ponerCompMas(compPanel.hidden));
-  mas.addEventListener('toggle', () => { try { localStorage.setItem('rastro:chatmas', mas.open ? '1' : '0'); } catch (e) { /* sin almacenamiento */ } if (mas.open) app.pintar(); });
   // El panel derecho de Chat (botón "Contexto") lo lleva js/chat-columns.js.
   // En ancho estrecho las secciones están en la barra lateral, que es un cajón: el botón Menú la abre.
   const menu = $('#menu');

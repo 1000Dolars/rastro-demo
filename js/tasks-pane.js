@@ -1,7 +1,7 @@
 /* Paneles Plan y Tareas en segundo plano (Claude Code Desktop los lista en el ⋮ de la barra de la sesión
    solo cuando hay algo que enseñar).
    - Plan: la lista de tareas de la sesión elegida (la misma que reconstruye services/claude/plan.js).
-   - Tareas en segundo plano: subagentes y órdenes que siguen tras devolver su resultado. Un clic enseña su
+   - Tareas en segundo plano: órdenes y monitores que siguen tras devolver su resultado (los subagentes van en Agentes). Un clic enseña su
      salida. Detener una tarea suelta no se puede desde fuera de Claude Code: el botón lo dice; las sesiones
      que lanzó Rastro se pueden detener enteras. Los flujos dinámicos no llegan a Rastro: se dice. */
 (function (RA) {
@@ -39,25 +39,21 @@
   }
 
   // ---------- Tareas en segundo plano ----------
+  // Solo órdenes y monitores en segundo plano (RA.logica.tareasFondo): los subagentes están en "Agentes trabajando"
+  // y en el mapa de Agentes, no aquí (2026-11-07: antes salían en los dos sitios).
   function tareas(s) {
-    const subs = (s.agentes || []).filter(a => a.padre).map(a => ({ clave: 'a:' + a.id, tipo: 'Subagente', nombre: a.cod + ' · ' + (a.tipo || 'subagente'), est: a.est, a: a }));
-    const fondo = (s.eventos || []).filter(e => e.fondo).map(e => ({ clave: 'e:' + e.id, tipo: 'Orden en segundo plano', nombre: e.h + ' · ' + (e.res || ''), est: e.est, e: e }));
-    return subs.concat(fondo).sort((x, y) => (y.est === 'curso') - (x.est === 'curso'));
+    return RA.logica.tareasFondo(s, D.ahora ? D.ahora() : Date.now()).map(t => ({ clave: 'e:' + t.id, tipo: t.tipo, nombre: t.cod + ' · ' + t.nombre, est: t.est, e: t.e }))
+      .sort((x, y) => (y.est === 'curso') - (x.est === 'curso'));
   }
 
   function salida(s, t) {
-    if (t.e) {
-      const e = t.e;
-      if (!e.cargado && D.detalle && !e.cargando) {
-        e.cargando = true;
-        Promise.resolve(D.detalle(s.id, e.id)).then(d => { Object.assign(e, d || {}, { cargado: true, cargando: false }); pintarTareas(); }, () => { e.cargando = false; });
-      }
-      const txt = e.salida || e.sal || e.err || '';
-      return e.cargando && !txt ? el('p', { class: 'label' }, 'Cargando') : el('pre', { class: 'dato tar-salida', tabindex: '0', 'aria-label': 'Salida de ' + t.nombre }, txt ? String(txt).slice(-6000) : 'Todavía no hay salida.');
+    const e = t.e;
+    if (!e.cargado && D.detalle && !e.cargando) {
+      e.cargando = true;
+      Promise.resolve(D.detalle(s.id, e.id)).then(d => { Object.assign(e, d || {}, { cargado: true, cargando: false }); pintarTareas(); }, () => { e.cargando = false; });
     }
-    // Subagente: sus últimas llamadas.
-    const evs = (s.eventos || []).filter(e => e.ag === t.a.id).slice(-8);
-    return evs.length ? el('ul', { class: 'tar-pasos' }, evs.map(e => el('li', { class: 'mono' }, [ui.estado(e.est), ' ', e.h + ' · ' + (e.res || '')]))) : el('p', { class: 'note' }, 'Este subagente todavía no ha hecho ninguna llamada.');
+    const txt = e.salida || e.sal || e.err || '';
+    return e.cargando && !txt ? el('p', { class: 'label' }, 'Cargando') : el('pre', { class: 'dato tar-salida', tabindex: '0', 'aria-label': 'Salida de ' + t.nombre }, txt ? String(txt).slice(-6000) : 'Todavía no hay salida.');
   }
 
   function pintarTareas() {

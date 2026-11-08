@@ -182,20 +182,19 @@
               <span id="masc-ayuda" class="comp-ayuda mono">Enter envía · Mayús+Enter línea · ↑ ↓ anteriores</span>
             </div>
           </div>
-          <!-- Lo que ya mostraba Chat y el diseño no pone a la vista: sigue aquí, plegado. -->
-          <details id="chat-mas" class="chat-mas">
-            <summary>Más detalles de la sesión: contexto, entorno, GitHub, conectores, modelos, línea de tiempo, actividad, agentes y herramientas</summary>
-            <div class="chat-mas-cuerpo" tabindex="0" role="region" aria-label="Más detalles de la sesión">
-              <!-- Las tarjetas de detalles (js/session-details.js y js/github-card.js), que estaban en el panel derecho
-                   hasta el chat en tres columnas: Contexto, Entorno, GitHub, Conectores y Tareas en segundo plano. -->
-              <div class="det-grupo">
-                <section id="det-contexto" class="card det" aria-labelledby="t-det-contexto"></section>
-                <section id="det-entorno" class="card det" aria-labelledby="t-det-ent"></section>
-                <section id="det-github" class="card det" aria-labelledby="t-det-gh"></section>
-                <section id="det-conectores" class="card det" aria-labelledby="t-det-con"></section>
-                <section id="det-tareas" class="card det" aria-labelledby="t-det-tar"></section>
-              </div>
-              <div id="masc-uso" class="masc-uso" hidden></div>
+          <!-- Detalles de la sesión (2026-11-07): lo que antes iba en el desplegable "Más detalles" y no está en el panel
+               Contexto. Se abre con el enlace del pie del panel y ocupa el sitio de la conversación (js/session-view.js).
+               Lo que ya tiene su pestaña (Actividad, Cambios recientes, mapa de agentes, uso del plan) solo se enlaza. -->
+          <section id="chat-detalles" class="chat-detalles" aria-labelledby="h-detalles" hidden>
+            <div class="det-cab">
+              <h2 id="h-detalles" class="det-tit" tabindex="-1">Detalles de la sesión <span id="det-sesion" class="mono note"></span></h2>
+              <button id="det-volver" type="button" class="btn btn-small">Volver a la conversación</button>
+            </div>
+            <div class="det-grupo">
+              <section id="det-github" class="card det" aria-labelledby="t-det-gh"></section>
+              <section id="det-conectores" class="card det" aria-labelledby="t-det-con"></section>
+            </div>
+            <div id="masc-uso" class="masc-uso" hidden></div>
         <section class="card k-mo" aria-labelledby="t-mo">
           <div id="modelos-uso" class="esc"></div>
           <div class="card-pie"><h2 id="t-mo" class="label">Modelos en uso <span data-ayuda="modelos"></span></h2><span id="modelos-cuenta" class="note"></span></div>
@@ -217,35 +216,42 @@
           </div>
           <div class="card-pie"><h2 id="t-ti" class="label">Línea de tiempo</h2><span id="tl-nota" class="label"></span></div>
         </section>
-        <section class="card k-ac" aria-labelledby="t-ac">
-          <div id="actividad" class="esc claro"></div>
-          <div class="card-pie"><h2 id="t-ac" class="label">Actividad</h2><button type="button" class="mas" data-ir="estadisticas" aria-label="Abrir Estadísticas, en Consumo"></button></div>
-        </section>
         <section class="card k-ag" aria-labelledby="t-ag">
           <div class="esc"><ul id="arbol" class="arbol" role="tree" aria-labelledby="t-ag"></ul></div>
-          <div class="card-pie"><h2 id="t-ag" class="label">Agentes</h2><button type="button" class="mas" data-ir="sesiones" aria-label="Abrir Sesiones"></button></div>
-        </section>
-        <section class="card k-ca" aria-labelledby="t-ca">
-          <div class="esc"><ul id="cambios-mini" class="lista"></ul></div>
-          <div class="card-pie"><h2 id="t-ca" class="label">Cambios recientes</h2><button type="button" class="mas" data-ir="cambios" aria-label="Abrir Cambios"></button></div>
+          <div class="card-pie"><h2 id="t-ag" class="label">Agentes</h2><button type="button" class="mas" data-ir="sesiones" data-mapa="1" aria-label="Abrir el mapa de agentes"></button></div>
         </section>
         <section class="card k-he" aria-labelledby="t-he">
           <div class="esc"><ul id="herr-mini" class="lista"></ul></div>
           <div class="card-pie"><h2 id="t-he" class="label">Herramientas</h2><button type="button" class="mas" data-ir="estadisticas" aria-label="Abrir las herramientas en Estadísticas, en Consumo"></button></div>
         </section>
-            </div>
-          </details>
+            <nav class="card det det-otras" aria-labelledby="t-det-otras">
+              <div class="esc det-esc"><ul class="det-lista">
+                <li><button type="button" class="enlace" data-ir="estadisticas">Actividad y herramientas de todas las sesiones</button> <span class="note mono">Consumo › Estadísticas</span></li>
+                <li><button type="button" class="enlace" data-ir="cambios">Cambios recientes</button> <span class="note mono">Cambios</span></li>
+                <li><button type="button" class="enlace" data-ir="sesiones" data-mapa="1">Mapa de agentes</button> <span class="note mono">Agentes</span></li>
+                <li><button type="button" class="enlace" data-ir="consumo">Uso del plan</button> <span class="note mono">Consumo › Tu plan</span></li>
+                <li><button type="button" class="enlace" data-ir="orquestacion">A dónde fue cada prompt</button> <span class="note mono">Consumo › Reparto automático</span></li>
+              </ul></div>
+              <div class="card-pie"><h2 id="t-det-otras" class="label">En otras pestañas</h2></div>
+            </nav>
+          </section>
         </div>
-        <!-- Panel derecho de Chat (300 px; js/chat-columns.js): solo Tareas (el Plan y los agentes en curso) y
-             Cambios (archivos tocados y "Ver diff"). Desde 1280 px es una columna; por debajo, un panel superpuesto
+        <!-- Panel derecho de Chat (300 px; js/chat-columns.js y js/session-details.js): Tareas, Contexto, Entorno,
+             Cambios y Tareas en segundo plano. Desde 1280 px es una columna; por debajo, un panel superpuesto
              que abre el botón "Contexto" de la cabecera. -->
         <aside id="chat-lado" class="chat-lado" aria-labelledby="chat-lado-t">
           <div class="lado-cab">
             <h2 id="chat-lado-t" class="label" tabindex="-1">Contexto</h2>
             <button id="lado-cerrar" type="button" class="btn btn-small lado-cerrar" aria-label="Cerrar el panel Contexto">Cerrar</button>
           </div>
+          <!-- De arriba abajo (2026-11-07): Tareas, Contexto (como /context), Entorno, Cambios y Tareas en segundo plano.
+               El resto de la sesión está en "Detalles de la sesión", con el enlace del pie. -->
           <section id="lado-tareas" class="card det" aria-labelledby="t-lado-tareas"></section>
+          <section id="det-contexto" class="card det" aria-labelledby="t-det-contexto"></section>
+          <section id="det-entorno" class="card det" aria-labelledby="t-det-ent"></section>
           <section id="lado-cambios" class="card det" aria-labelledby="t-lado-cambios"></section>
+          <section id="det-tareas" class="card det" aria-labelledby="t-det-tar"></section>
+          <p class="lado-pie"><button id="lado-ver-detalles" type="button" class="enlace" aria-controls="chat-detalles">Detalles de la sesión</button></p>
         </aside>
       </div>
     </section>
@@ -526,6 +532,7 @@
 <script defer src="js/panes.js"></script>
 <script defer src="js/github-card.js"></script>
 <script defer src="js/session-details.js"></script>
+<script defer src="js/session-view.js"></script>
 <script defer src="js/browser-pane.js"></script>
 <script defer src="js/file-editor.js"></script>
 <script defer src="js/tasks-pane.js"></script>

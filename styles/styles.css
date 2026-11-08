@@ -631,7 +631,6 @@ details[open] > summary { margin-bottom:12px; }
 }
 /* Bento y mascota (.bento, .masc): responden al ancho de la columna central (contenedor "centro"), no al de la
    ventana, porque las columnas laterales le quitan sitio. Mismos nombres de áreas. */
-.chat-mas-cuerpo { container:centro / inline-size; }
 @container centro (max-width:1279px) {
   .bento {
     grid-template-columns:repeat(8,minmax(0,1fr));
@@ -1171,7 +1170,7 @@ body.en-chat .shell { padding-top:0; padding-right:0; }
 body.panel-plegado .chat-1a { grid-template-columns:minmax(0,1fr); }
 body.panel-plegado .chat-lado { display:none; }
 .chat-col { min-width:min(560px, 100%); display:flex; flex-direction:column; gap:20px; padding:32px 24px 0 0; }
-.conv, .conv-vivo, .compositor, .chat-mas { width:100%; max-width:700px; margin:0 auto; }
+.conv, .conv-vivo, .compositor { width:100%; max-width:700px; margin:0 auto; }
 .conv { display:flex; flex-direction:column; gap:24px; }
 .conv-turno { display:flex; flex-direction:column; gap:24px; }
 .conv-tu { align-self:flex-end; max-width:80%; padding:12px 16px; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--r-card) var(--r-card) var(--r-sm) var(--r-card); font:400 15px/1.55 var(--f-ui); white-space:pre-wrap; overflow-wrap:anywhere; }
@@ -1242,20 +1241,21 @@ body.panel-plegado .chat-lado { display:none; }
 .riesgo { padding:2px 6px; border:1px solid var(--warn); border-radius:var(--r-pill); font:500 11px/1 var(--f-mono); letter-spacing:.06em; color:var(--warn); }
 .modo-check { flex:none; width:14px; font:500 13px/1.4 var(--f-mono); }
 .modo-pie { padding:8px 10px 6px; font:400 12px/1 var(--f-mono); color:var(--ink-3); }
-/* Más detalles (plegado) */
-.chat-mas { margin-top:16px; margin-bottom:24px; border:1px solid var(--line); border-radius:var(--r-card); }
-.chat-mas > summary { padding:14px 18px; cursor:pointer; color:var(--ink-2); font:500 14px/1.3 var(--f-ui); }
-.chat-mas[open] > summary { border-bottom:1px solid var(--line); }
-.chat-mas-cuerpo { position:relative; display:flex; flex-direction:column; gap:var(--gap); padding:16px; max-height:70vh; overflow-y:auto; overscroll-behavior:contain; }
-/* position:relative: sin ella, los textos .sr (absolutos) de dentro escapan del recorte y alargan la página. */
-.chat-mas-cuerpo:focus-visible { outline:2px solid var(--ink); outline-offset:-2px; }
-/* Bloque J: dentro de Más detalles las tarjetas no llevan marco propio; queda el del desplegable y el del escenario. */
-.chat-mas-cuerpo .card { padding:0; background:none; border:0; border-radius:0; }
+/* Detalles de la sesión (2026-11-07): ocupa el sitio de la conversación; sus tarjetas no llevan marco propio. */
+.chat-1a.ver-detalles > .chat-col > :not(.chat-detalles) { display:none; }
+.chat-detalles { position:relative; display:flex; flex-direction:column; gap:var(--gap); width:100%; padding-bottom:24px; container:centro / inline-size; }
+.chat-detalles[hidden] { display:none; }
+.det-cab { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; }
+.det-tit { margin:0; font:500 16px/1.3 var(--f-ui); color:var(--ink); }
+.det-tit:focus { outline:none; }
+.det-tit:focus-visible { outline:2px solid var(--sel); outline-offset:2px; }
+.det-otras .det-lista li { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px; min-height:32px; }
+.det-otras .enlace { display:inline; font-size:14px; }
 /* Bloque I: en las tarjetas de detalle la etiqueta va encima del contenido. */
 .card.det { display:flex; flex-direction:column; }
 .card.det > .card-pie { order:-1; min-height:32px; padding:4px 12px 8px; }
 /* Panel derecho (320 px) */
-.chat-lado { position:sticky; top:56px; display:flex; flex-direction:column; gap:12px; padding:16px; border-left:1px solid var(--line); }
+.chat-lado { position:sticky; top:56px; display:flex; flex-direction:column; gap:12px; padding:16px; border-left:1px solid var(--line); max-height:calc(100vh - 56px - 46px); overflow-y:auto; overscroll-behavior:contain; }
 .chat-lado .card { padding:8px; border-radius:var(--r-card); }
 .chat-lado .esc { padding:16px; border-radius:var(--r-field); min-height:0; }
 .chat-lado #activos { display:flex; flex-direction:column; align-items:center; gap:12px; padding:18px 16px; }
@@ -1462,8 +1462,6 @@ body.en-agentes .shell { padding:0 0 var(--pie, 44px); }
   .ag-barra { padding:8px 12px; }
   .ag-leyenda { display:none; }
 }
-/* "Más detalles" usa todo el ancho de la columna: el heatmap necesita sus 52 semanas. */
-.chat-mas { max-width:none; }
 @media (max-width:600px) { .modo-lista { position:fixed; left:12px; right:12px; bottom:auto; top:72px; width:auto; max-height:calc(100vh - 140px); overflow-y:auto; } }
 @media (max-width:600px) {
   .top #b-muestra { max-width:9ch; overflow:hidden; text-overflow:ellipsis; }
@@ -2010,3 +2008,42 @@ pre.resp-prosa:focus-visible, .masc-md:focus-visible { outline:2px solid var(--s
 .prog-fila { display:flex; flex-wrap:wrap; gap:16px; }
 .prog-fila > .campo { flex:1 1 180px; min-width:0; }
 .prog-hist summary { cursor:pointer; color:var(--ink-2); min-height:24px; }
+
+/* Barra de la sesión (2026-11-07): Contexto como /context, Entorno compacto, Tareas en segundo plano y el enlace del pie. */
+.ctx-uso { display:flex; flex-direction:column; gap:8px; }
+.ctx-cifras { display:flex; align-items:baseline; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+.ctx-sin { font-size:13px; color:var(--ink-2); }
+.ctx-cats { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
+.ctx-cat { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 8px; align-items:baseline; }
+.ctx-cat-n { font:400 13px/1.3 var(--f-ui); color:var(--ink); min-width:0; overflow-wrap:anywhere; }
+.ctx-cat-v { font-size:12px; color:var(--ink-2); white-space:nowrap; }
+.ctx-cat-barra { grid-column:1 / -1; height:4px; border-radius:var(--r-pill); background:var(--heat-0); overflow:hidden; }
+.ctx-cat-barra i { display:block; height:100%; background:var(--ink-3); }
+.ctx-cat.libre .ctx-cat-barra i { background:var(--line-strong); }
+.ctx-fuera > summary { cursor:pointer; padding:4px 0; }
+.ctx-fuera .ctx-cats { margin-top:6px; }
+.ctx-pie { flex-wrap:wrap; gap:8px; align-items:center; }
+.ctx-estado { margin:0; flex:1 1 140px; min-width:0; font-size:14px; overflow-wrap:anywhere; }
+.ctx-estado.mono { font-size:12px; }
+.ent-est { display:inline-flex; align-items:center; gap:6px; }
+.chat-lado .sw { display:inline-flex; align-items:center; gap:6px; }
+.fondo-lista { gap:8px; }
+.fondo-fila { display:flex; align-items:flex-start; gap:10px; min-width:0; }
+.fondo-txt { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.fondo-l1 { display:flex; justify-content:space-between; gap:8px; }
+.fondo-n { font-size:12px; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fondo-est { display:inline-flex; align-items:center; gap:6px; }
+.lado-pie { margin:0; padding:4px 4px 0; }
+.lado-pie .enlace { display:inline-flex; align-items:center; min-height:40px; font:400 13px/1.3 var(--f-ui); color:var(--ink-2); }
+.lado-pie .enlace:hover { color:var(--ink); }
+.ctx-uso .medidor { gap:2px; }
+.chat-lado .det-fila-donde { flex-direction:column; align-items:flex-start; gap:4px; }
+.chat-lado .det-fila-donde .det-donde { max-width:100%; white-space:normal; overflow-wrap:anywhere; }
+
+/* Tareas elegibles del orquestador (Ajustes › IA económicas): el estado pulsado se ve (✓, borde y fondo), no solo en
+   aria-pressed. Antes encendido y apagado eran iguales y la lista se podía vaciar sin notarlo (hallazgo 1). */
+.badges.elegibles .btn[aria-pressed="true"] { border-color:var(--ink); background:var(--surface-2); color:var(--ink); }
+.badges.elegibles .btn[aria-pressed="false"] { color:var(--ink-2); }
+@media (forced-colors:active) { .badges.elegibles .btn[aria-pressed="true"] { border:2px solid Highlight; } }
+.orq-avisos { gap:4px; }
+.orq-avisos p { margin:0; }
